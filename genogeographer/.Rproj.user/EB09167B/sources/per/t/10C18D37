@@ -1,0 +1,26 @@
+{
+    "id": "10C18D37",
+    "path": "~/work/R/ggg_v2/genogeographer/R/valid_v2.R",
+    "project_path": "R/valid_v2.R",
+    "type": "r_source",
+    "hash": "2616096405",
+    "contents": "",
+    "dirty": false,
+    "created": 1612334730696.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "319,31",
+        "scrollLine": "301"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1616663649,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1616663649804,
+    "read_only": false,
+    "read_only_alternatives": []
+}

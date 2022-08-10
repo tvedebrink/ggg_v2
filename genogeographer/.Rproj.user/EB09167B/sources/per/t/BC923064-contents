@@ -1,0 +1,44 @@
+non_list_cols <- function(df){
+  names(df)[df %>% map_lgl(~ !any(class(.x) %in% "list"))]
+}
+
+ggg_score <- function(profile_x0, DB, CI = 0.95, tilt = FALSE, LOO = NULL){
+  groups <- non_list_cols(DB)
+  groups_ <- sym(groups)
+  ## Fix for Leave-One-Out analysis!
+  if(!is.null(LOO) && LOO %in% DB[[groups]]){
+      DB_loo <- DB %>% filter(!!groups_ == LOO) %>% loo_update(profile_x0)
+      DB_ <- DB %>% filter(!!groups_ != LOO)
+      DB <- bind_rows(DB_loo, DB_) %>% arrange(!!groups_)
+  }
+  ##
+  DB %>% unnest(cols = data) %>%
+    inner_join(profile_x0, by = c("locus", "x0")) %>%
+    group_by(across({{groups}})) %>%
+    summarise(
+      logP = sum(logP),
+      varlogP = sum(varlogP),
+      logP_upr = logP + CI*sqrt(varlogP),
+      logP_lwr = logP - CI*sqrt(varlogP),
+      z_score = sum(z_raw)/sqrt(sum(z_var)),
+      p_value = pnorm(z_score, lower.tail = FALSE),
+      .groups = "drop"
+    ) %>%
+    arrange(desc(logP)) %>%
+    select({{groups}}, everything())
+}
+
+if(FALSE){
+
+dane_res <- ggg_score(dane1, pop_DB)
+dane_res_loo <- ggg_score(dane1, pop_DB, LOO = "DK")
+dane_res_meta <- ggg_score(dane1, meta_DB)
+
+dane_res_meta_loo <- ggg_score(dane1, meta_DB, LOO = "EUROPE")
+
+dane_res_meta_loo <- ggg_score(dane1, meta_DB, LOO = "CDP")
+
+dane_res_meta_1admix <- ggg_score(dane1, meta_DB_1admix)
+
+}
+

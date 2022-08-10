@@ -1,0 +1,27 @@
+{
+    "id": "301E008C",
+    "path": "~/work/R/ggg_v2/genogeographer/R/helper_tests.R",
+    "project_path": "R/helper_tests.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1660049694529.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "110,43",
+        "scrollLine": "89"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1655901043,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1655901043,
+    "read_only": false,
+    "read_only_alternatives": []
+}

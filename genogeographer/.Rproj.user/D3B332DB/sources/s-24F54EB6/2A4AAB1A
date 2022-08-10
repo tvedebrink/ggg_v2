@@ -1,0 +1,26 @@
+{
+    "id": "2A4AAB1A",
+    "path": "~/work/R/ggg_v2/genogeographer/R/api_db.R",
+    "project_path": "R/api_db.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1660115746444.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "117,42",
+        "scrollLine": "102"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1660117549,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1660117549384,
+    "read_only": false,
+    "read_only_alternatives": []
+}

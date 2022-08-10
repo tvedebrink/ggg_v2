@@ -1,0 +1,839 @@
+#' ---
+#' title: "GenoGeoGrapher"
+#' subtitle: "Testset v.2"
+#' author: "Helle Smidt Mogensen and Torben Tvedebrink"
+#' output:
+#'   html_document:
+#'     code_folding: hide
+#'     df_print: paged
+#'     fig_caption: true
+#' ---
+
+#' ---
+#' date: `r format(Sys.time(), "%c")`
+#' ---
+
+#' <style type="text/css">
+#' .twoC {width: 100%}
+#' .clearer {clear: both}
+#' .twoC .table {max-width: 35%; float: left}
+#' .twoC img {max-width: 65%; float: right}
+#' </style>
+
+#+ setup, include=FALSE
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, comment = NA,
+                      fig.width = 16, fig.asp = 0.65)
+
+path <- ""
+if(interactive()){
+  path <- "R/" ## INTERACTIVE SESSION
+}
+
+source(paste0(path, "valid_preamble.R"))
+library(maps)
+
+if(FALSE){
+  lazyLoad("R/valid_v2_cache/html/ggg_compute_36b3a267ef269f5ffa0f524d905c2e30")
+  test_samples_meta_result_
+  lazyLoad("R/valid_v2_cache/html/ref_ggg_compute_7b0797001243799ef6dc3dc39d658872")
+  ref_samples_result_
+  lazyLoad("R/valid_v2_cache/html/outcome_5eb8bbf599488a2fe8e920d363802f23")
+  ref_samples_result_df
+  test_samples_meta_result_df
+}
+
+theme_set(theme_minimal())
+
+work <- ""
+if(parallel::detectCores() < 10) work <- "work/"
+
+data_path <- paste0("~/", work, "artikler/AIMs/data/valid_v2/data/")
+genomAD_path <- paste0("~/", work, "artikler/AIMs/data/valid_v2/genomAD/")
+
+#+ read_csv, cache = TRUE
+
+zip_folders <- list.dirs(data_path)
+zip_folders <- zip_folders[-1] %>%
+  set_names(sub(paste0(data_path, "/"), "", .))
+
+zip_files <- zip_folders %>% lapply(list.files, full.names = TRUE)
+
+zip_files <- c(zip_files,
+               set_names(list(list.files(paste0(genomAD_path, "/Profiler"), full.names = TRUE)), nm = genomAD_path))
+
+test_samples <- zip_files %>%
+  purrr::map_df( ~ tibble(file = .x) %>%
+                   rowwise() %>%
+                   mutate(data = list(read_csv(file, col_types = cols()) %>% filter(rowSums(. == "WHATWHAT") == 0))) %>%
+                   ungroup(), .id = "folder") %>%
+  mutate(
+    file = basename(file),
+    sample_name = sub("\\.csv", "", file)
+    )
+
+# test_samples %>%
+#   mutate(data_WHATWHAT = purrr::map(data, ~.x %>% filter(rowSums(. == "WHATWHAT") > 0) %>% select(-1)),
+#          n_WHATWHAT = map_int(data_WHATWHAT, ~nrow(.x))) %>%
+#   filter(n_WHATWHAT > 0) %>%
+#   unnest(data_WHATWHAT) %>%
+#   rio::export("whatwhat.xlsx")
+
+## test_meta <- read_excel(paste0(data_path, "/GGG2TestSamples.xlsx")) ## TT: Fixed Ecuador samples (See ECU.txt)
+genomAD_meta <- read_excel(paste0(genomAD_path, "GGG2TestSamples_11032021.xlsx")) ##
+## meta_file <- test_meta %>% bind_rows(genomAD_meta) ## all(test_meta$Filename %in% genomAD_meta$Filename)
+
+# test_samples %>% semi_join(test_meta, by = c("sample_name" = "Filename"))
+# test_samples %>% anti_join(test_meta, by = c("sample_name" = "Filename"))
+
+test_samples_meta <- test_samples %>%
+ left_join(genomAD_meta, by = c("sample_name" = "Filename"))
+
+# test_samples_meta %>% filter(Study == "gnomAD") %>% count(Country_of_origin) ## %>% pull(n) %>% sum() # 1999
+
+# All samples has information on GIS, Continent, Country_of_origin
+# test_samples_meta %>% filter(is.na(Latitude) | is.na(Longitude))
+# test_samples_meta %>% filter(is.na())
+
+#' # Data
+
+#' ## Test samples
+
+test_samples_meta %>% select(-c(Assembly_ID, Code, Continent_region_of_origin, Subregion)) %>%
+  select(-data) %>%
+  mutate(folder = sub("\\/\\/", "\\/", sub("^.*AIMs/", "", folder))) %>%
+  mutate(across(c(folder, Country_of_origin, Study, Continent), factor)) %>%
+  dt_table()
+
+#' ## Summaries
+
+test_samples_meta_continent <- test_samples_meta %>% count(Continent, Study) %>%
+  spread(Study, n, fill = 0L) %>%
+  mutate(Total = rowSums(select(., where(is.numeric))))
+test_samples_meta_continent %>% kable_()
+
+test_samples_meta_country <- test_samples_meta %>% count(Continent, Country_of_origin) %>%
+  group_by(Continent) %>% mutate(N = sum(n)) %>%
+  unite(Countries, Country_of_origin, n, sep = " (") %>%
+  summarise(
+    Countries = paste0(paste(Countries, collapse = "), "),")"),
+    n = N[1],
+    .groups = "drop"
+  )
+test_samples_meta_country %>% relocate(n, .after = Continent) %>% dt_simple()
+# Map
+
+test_samples_meta_country_fix <- test_samples_meta %>%
+  mutate(
+    Country_of_origin = trimws(sub("\\(.*", "", Country_of_origin)),
+    country = case_when(
+      Country_of_origin == "Abkhazia" ~ "Georgia",
+      Country_of_origin == "Bosnia-Herzegovina" ~ "Bosnia and Herzegovina",
+      Country_of_origin == "D.R. Congo" ~ "Congo, Dem. Rep.",
+      Country_of_origin == "Congo" ~ "Congo, Rep.",
+      Country_of_origin == "Czechoslovia" ~ "Czech Republic",
+      Country_of_origin == "Cypern, Tyrkisk" ~ "Turkey",
+      Country_of_origin %in% c("Adygea", "Chechnya") ~ "Russia",
+      Country_of_origin %in% c("Arizona", "Oklahoma", "USA") ~ "United States",
+      Country_of_origin == "Equador" ~ "Ecuador",
+      Country_of_origin %in% c("OrkneyIslands", "Scotland", "UK", "England") ~ "United Kingdom",
+      Country_of_origin == "Jordania" ~ "Jordan",
+      Country_of_origin == "Mongoliet" ~ "Mongolia",
+      Country_of_origin == "SierraLeone" ~ "Sierra Leone",
+      Country_of_origin == "Faroe Island" ~ "Denmark",
+      Country_of_origin == "Serbien/Montenegro" ~ "Montenegro",
+      Country_of_origin == "Sardinia" ~ "Italy",
+      Country_of_origin == "Spanien" ~ "Spain",
+      Country_of_origin == "Yugoslavia" ~ "Croatia",
+      Country_of_origin == "Western Sahara" ~ "Morocco",
+      Country_of_origin == "BotswanaOrNamibia" ~ "Botswana",
+      Country_of_origin %in% c("Korea", "South Korea", "Sydkorea") ~ "Korea, Rep.",
+      Country_of_origin == "PapuaNewGuinea" ~ "Papua New Guinea",
+      Country_of_origin == "SouthAfrica" ~ "South Africa",
+      Country_of_origin == "Ukraine" ~ "Ukrain",
+      grepl("Myan", Country_of_origin) ~ "Myanmar",
+      Country_of_origin == "Yemen" ~ "Yemen, Rep.",
+      Country_of_origin == "Saudi_Arabia" ~ "Saudi Arabia",
+      TRUE ~ Country_of_origin
+    )
+  )
+
+latlon_continent <- test_samples_meta %>% count(long = Longitude, lat = Latitude, continent = Continent)
+latlon_country <- test_samples_meta_country_fix %>%
+  count(long = Longitude, lat = Latitude, continent = Continent, country)
+
+#' ## Countries with more than one Continent
+
+test_samples_meta_country_fix %>% count(continent = Continent, country) %>%
+  group_by(country) %>% mutate(N = row_number(), N = max(N)) %>%
+  filter(N > 1L) %>% select(-c(N, n)) %>%
+  ungroup() %>%
+  arrange(country) %>%
+  kable_()
+
+continent_pals <- test_samples_meta_country_fix %>%
+  distinct(Continent, country) %>%
+  # count(Continent) ## n_col below comes from executing this line
+  group_by(Continent) %>%
+  mutate(id = row_number()) %>%
+  ungroup()
+
+colour_continents <- tribble(
+  ~continent, ~n_col, ~palette, ~min_col, ~max_col,
+  "Central Asia",           6L,  "Greens",   "#74C476", "#238B45", # [5]:[7]/[9]
+  "East Asia",             15L,  "Greens",   "#F7FCF5", "#A1D99B", # [1]:[4]/[9]
+  "Europe",                31L,  "Blues",    "#F7FBFF", "#08306B",
+  "Middle East",           12L,  "Oranges",  "#FFF5EB", "#7F2704",
+  "North Africa",           3L,  "PuBu",     "#A6BDDB", "#3690C0", # [4]:[6]/[9]
+  "North America",          2L,  "BrBG",     "#543005", "#DFC27D", # [8]:[10]/[11]
+  "North Asia",             2L,  "Greens",   "#006D2C", "#00441B", # [8]:[9]/[9]
+  "North East Asia",        1L,  "YlGn",     "#F7FCB9", "#D9F0A3", # [2]:[3]/[9]
+  "Somalia",                3L,  "GIMP",     "#9A6262", "#443131",
+  "South America",          5L,  "BrBG",     "#543005", "#DFC27D", # [1]:[4]/[11]
+  "South/Central Asia",     6L,  "BuGn",     "#CCECE6", "#66C2A4", # [3]:[5]/[9]
+  "Sub Sahara",            24L,  "Purples",  "#FCFBFD", "#3F007D"
+  ) %>%
+  rowwise(continent) %>%
+  summarise(
+    colour = colour_ramp(colors = c(min_col, max_col))(seq(0,1,len = n_col)),
+    .groups = "drop"
+    ) %>%
+  group_by(continent) %>%
+  mutate(id = row_number()) %>%
+  ungroup()
+
+colour_contries <- colour_continents %>%
+  full_join(continent_pals, by  = c("continent" = "Continent", "id"))
+
+colour_contries_ <- colour_contries %>% select(country, colour) %>% deframe()
+colour_russia <- colour_ramp(c("#FCBBA1","#A50F15")) ## Reds: [3]:[8]/[9]
+
+latlon_country_col <- latlon_country %>% filter(country %in% c("Russia", "Siberia")) %>%
+  slice(sample(nrow(.))) %>% ## random
+  mutate(colour = colour_russia(row_number()/nrow(.))) %>%
+  bind_rows(latlon_country %>% filter(country %ni% c("Russia", "Siberia")) %>%
+              left_join(colour_contries %>% select(-id), by = c("continent", "country")))
+
+if(FALSE){
+  latlon_country %>% anti_join(latlon_continent, by = c("long", "lat", "continent", "n"))
+  test_samples_meta %>% filter(grepl("[i|I]taly", country))
+  test_samples_meta %>% filter(grepl("[i|I]srael", country))
+  test_samples_meta %>% filter(grepl("[i|I]srael", country))
+}
+
+#' # Map of sample locations
+
+latlon_country_col %>%
+  ggplot(aes(x=long, y = lat, fill = I(colour), size = n)) +
+  geom_polygon(data=map_data("world"), aes(group=group, size = NULL),
+               colour="gray80",fill="gray90", show.legend = FALSE) +
+  geom_point(show.legend = FALSE, pch = 21) +
+  NULL
+
+colour_continents_legend <- colour_continents %>%
+  group_by(continent) %>%
+  filter(id %in% range(id)) %>%
+  mutate(
+    n = max(id),
+    id = c("min", "max")[seq_along(id)]
+    ) %>%
+  ungroup() %>%
+  spread(key = id, value = colour) %>%
+  mutate(
+    max = ifelse(is.na(max), min, max),
+    y = row_number()
+    )
+
+##
+
+source(paste0(path, "api_zscore.R"))
+source(paste0(path, "api_LR_table.R"))
+source(paste0(path, "tmp_db.R"))
+
+#+ db_compute, cache = TRUE
+meta_DB <- make_x1(data_file, groups = "meta", exclude = c(1, 2))
+meta_DB_1admix <- admix_dbs(meta_DB)
+
+saveRDS(meta_DB, file = paste0("meta_DB",Sys.Date(),".Rds"))
+saveRDS(meta_DB_1admix, file = paste0("meta_DB_1admix",Sys.Date(),".Rds"))
+
+#' ## Test samples
+
+## Make timing of ggg and LR functions..
+
+#+ x0_convert, cache = TRUE
+
+test_samples_meta_result <- test_samples_meta_country_fix %>%
+  select(folder, file, genotype = data, sample_name, Country_of_origin, Study, Continent, Latitude, Longitude, country) %>%
+  mutate(x0 = purrr::map(genotype, ~ genotype_x0(.x))) %>%
+  mutate(n_loci = purrr::map_int(x0, ~ nrow(.x)))
+
+if(FALSE){
+  test_samples_meta_result %>%
+    count(Continent, n_loci) %>%
+    filter(n_loci < 164*0.9) %>%
+    group_by(Continent) %>%
+    summarise(n_samples = sum(n), .groups = "drop") %>%
+    unite(c_n, sep = ": ") %>%
+    pull(c_n) %>% cat(sep = "\n")
+}
+
+#+ ref_convert, cache = TRUE
+
+ref_samples_result <- data_file %>%
+  mutate(across(starts_with("rs"), paste)) %>%
+  nest(data = starts_with("rs")) %>%
+  mutate(
+    data = purrr::map(data, ~ .x %>% gather(locus, genotype)),
+    x0 = purrr::map(data, ~ genotype_x0(.x))
+    ) %>%
+  mutate(n_loci = purrr::map_int(x0, ~ nrow(.x)))
+
+#+ ggg_compute, cache = TRUE
+
+test_samples_meta_result_ <- test_samples_meta_result %>%
+  mutate(
+    meta = map2(.x = x0, .y = Continent, ~ ggg_score(profile_x0 = .x, DB = meta_DB, LOO = .y)),
+    meta_admix = map2(.x = x0, .y = Continent, ~ ggg_score(profile_x0 = .x, DB = meta_DB_1admix)),
+    LR_meta = purrr::map(meta, ~LR_table(.x, only_accepted = FALSE)),
+    LR_meta_admix = purrr::map(meta_admix, ~LR_table(.x, only_accepted = FALSE)),
+    LR_meta_all = purrr::map2(meta, meta_admix, ~LR_table(bind_rows(.x, .y), only_accepted = FALSE))
+    )
+
+#+ ref_ggg_compute, cache = TRUE
+
+ref_samples_result_ <- ref_samples_result %>%
+  mutate(
+    meta = map2(.x = x0, .y = meta, ~ ggg_score(profile_x0 = .x, DB = meta_DB, LOO = .y)),
+    meta_admix = map2(.x = x0, .y = meta, ~ ggg_score(profile_x0 = .x, DB = meta_DB_1admix)),
+    LR_meta = purrr::map(meta, ~LR_table(.x, only_accepted = FALSE)),
+    LR_meta_admix = purrr::map(meta_admix, ~LR_table(.x, only_accepted = FALSE)),
+    LR_meta_all = purrr::map2(meta, meta_admix, ~LR_table(bind_rows(.x, .y), only_accepted = FALSE))
+  )
+
+#' # Sample results
+
+# saveRDS(ref_samples_result_, file = "ref_samples_result_.Rds")
+# ref_samples_result_ <- readRDS(file = "R/ref_samples_result_.Rds")
+
+#+ outcome, cache = TRUE
+
+status_out <- function(LR_obj){
+  status <- LR_obj$status
+  accepted <- if(length(status) == 2L) status[2] else NA_character_
+  tibble(status = status[1], accepted = accepted)
+}
+
+test_samples_meta_result_df <- test_samples_meta_result_ %>%
+  mutate(
+    outcome = purrr::map(LR_meta, ~status_out(.x)),
+    outcome_admix = purrr::map(LR_meta_admix, ~status_out(.x)),
+    outcome_all = purrr::map(LR_meta_all, ~status_out(.x))
+  ) %>% unnest(outcome:outcome_all, names_sep = "_")
+
+ref_samples_result_df <- ref_samples_result_ %>%
+  left_join(data_file %>% select(sample, pop, Continent = meta), by = c("sample", "pop")) %>%
+  mutate(
+    outcome = purrr::map(LR_meta, ~status_out(.x)),
+    outcome_admix = purrr::map(LR_meta_admix, ~status_out(.x)),
+    outcome_all = purrr::map(LR_meta_all, ~status_out(.x))
+  ) %>% unnest(outcome:outcome_all, names_sep = "_")
+
+#'
+
+# saveRDS(test_samples_meta_result_df, file = "test_samples_meta_result_df.Rds")
+# saveRDS(ref_samples_result_df, file = "ref_samples_result_df.Rds")
+
+##
+
+meta_Meta <- c('AFRICA' = 'Sub Sahara',
+               'HORN_AFRICA' = "Horn of Africa",
+               'N AFRICA' = "North Africa",
+               'EUROPE' = "Europe",
+               'M EAST' = 'Middle East',
+               'SC ASIA' = 'South/Central Asia',
+               'E ASIA' = "East Asia",
+               'WEST_GRL' = 'West Greenland',
+               'EAST_GRL' = 'East Greenland')
+n_mM <- length(meta_Meta)
+
+meta_Meta_admix <- t(outer(meta_Meta, meta_Meta, paste, sep = " & "))
+meta_Meta_admix_ <- t(outer(rownames(meta_Meta_admix), colnames(meta_Meta_admix), paste, sep = " & "))
+## Hack?
+diag(meta_Meta_admix_) <- sub(" \\&.*", "", diag(meta_Meta_admix_))
+meta_Meta_admix <- meta_Meta_admix %>% as.vector() %>% set_names(meta_Meta_admix_)
+
+meta_Meta_admix <- meta_Meta_admix %>% split(sub(" \\&.*", "", names(.))) %>%
+  {.[names(meta_Meta)]} %>%
+  imap(~ c(.x[.y], .x[names(.x)!=.y])) %>% unname() %>%
+  unlist()
+
+meta_Meta_admix_ <- c(meta_Meta, meta_Meta_admix)
+meta_Meta_admix_ <- meta_Meta_admix_[unique(names(meta_Meta_admix_))]
+
+## Not needed with hack..
+meta_Meta_all <-
+  c(meta_Meta %>% {set_names(paste(., "&"), names(.))}, meta_Meta_admix)[sapply(seq_len(n_mM), function(i) c(i, i*n_mM+seq_len(n_mM)))]
+
+Continent_levels <- c('Sub Sahara', 'Somalia', 'Horn of Africa', 'North Africa',
+                      'Europe', 'Middle East',
+                      'South/Central Asia', 'Central Asia', 'North Asia', 'North East Asia', 'East Asia',
+                      'South America', 'North America')
+
+first_cols <- c("Continent", "n_samples", "Rejected", "Ambiguous")
+
+naive_assignment <- function(df){
+  groups <- names(df)[1]
+  groups_ <- sym(groups)
+  max_logP <- df[[groups]][which.max(df$logP)]
+  c(meta_Meta, meta_Meta_admix)[[max_logP]]
+}
+
+#' ## Sample results {.tabset}
+#'
+#' ### Collapsed
+
+test_samples_meta_result_df_ <- test_samples_meta_result_df %>%
+  mutate(
+    meta_result = map2(.x = meta, .y = meta_admix, .f = ~ bind_rows(.x, .y) %>% arrange(desc(logP))),
+    meta = NULL, meta_admix = NULL,
+    LR_meta_all = purrr::map(.x = LR_meta_all, ~ .x$LR),
+    folder = sub("^.*valid_v2/data/","", folder),
+    outcome_all_accepted = ifelse(outcome_all_status == "Accepted", meta_Meta_admix_[outcome_all_accepted], outcome_all_status),
+    outcome_all_accepted = factor(outcome_all_accepted, levels = c("Rejected", "Ambiguous", unname(meta_Meta_admix_)))
+  ) %>%
+  select(Study, folder, file, sample_name, Country_of_origin, Continent, meta_result, LR_meta_all, outcome_all_accepted) %>%
+  select(-LR_meta_all) %>%
+  unnest(meta_result) %>%
+  mutate(meta = meta_Meta_admix_[meta])
+
+ref_samples_meta_result_df_ <- ref_samples_result_df %>%
+  mutate(
+    meta_result = map2(.x = meta, .y = meta_admix, .f = ~ bind_rows(.x, .y) %>% arrange(desc(logP))),
+    meta = NULL, meta_admix = NULL,
+    LR_meta_all = purrr::map(.x = LR_meta_all, ~ .x$LR),
+    outcome_all_accepted = ifelse(outcome_all_status == "Accepted", meta_Meta_admix_[outcome_all_accepted], outcome_all_status),
+    outcome_all_accepted = factor(outcome_all_accepted, levels = c("Rejected", "Ambiguous", unname(meta_Meta_admix_)))
+  ) %>%
+  select(sample, Country_of_origin = pop, Continent, meta_result, LR_meta_all, outcome_all_accepted) %>%
+  select(-LR_meta_all) %>%
+  unnest(meta_result) %>%
+  mutate(
+    Continent = meta_Meta_admix_[Continent],
+    meta = meta_Meta_admix_[meta]
+  )
+
+## CONTINENT
+
+# ref_samples_result_df_ <- ref_samples_result_df %>%
+#   mutate(
+#     meta_result = map2(.x = meta, .y = meta_admix, .f = ~ bind_rows(.x, .y) %>% arrange(desc(logP))),
+#     meta = NULL, meta_admix = NULL,
+#     LR_meta_all = purrr::map(.x = LR_meta_all, ~ .x$LR),
+#     folder = sub("^.*valid_v2/data/","", folder),
+#     outcome_all_accepted = ifelse(outcome_all_status == "Accepted", meta_Meta_admix_[outcome_all_accepted], outcome_all_status),
+#     outcome_all_accepted = factor(outcome_all_accepted, levels = c("Rejected", "Ambiguous", unname(meta_Meta_admix_)))
+#   ) %>%
+#   select(Study, folder, file, sample_name, Country_of_origin, Continent, meta_result, LR_meta_all, outcome_all_accepted) %>%
+#   select(-LR_meta_all) %>%
+#   unnest(meta_result) %>%
+#   mutate(meta = meta_Meta_admix_[meta])
+
+
+file_path <- paste0(path, "detailed_info/")
+if(!dir.exists(file_path)) dir.create(file_path)
+
+#' ### RGA
+test_samples_meta_result_df_ %>% filter(Study == "RGA") %>% select(-Study) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "RGA.xlsx")) # dt_table()
+
+#' ### Santangelo
+test_samples_meta_result_df_ %>% filter(Study == "Santangelo") %>% select(-Study) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "Santangelo.xlsx")) # dt_table()
+
+#' ### Pagani
+test_samples_meta_result_df_ %>% filter(Study == "Pagani") %>% select(-Study) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "Pagani.xlsx")) # dt_table()
+
+#' ### Pakstis
+test_samples_meta_result_df_ %>% filter(Study == "Pakstis") %>% select(-Study) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "Pakstis.xlsx")) # dt_table()
+
+#' ### SGDP
+test_samples_meta_result_df_ %>% filter(Study == "SGDP") %>% select(-Study) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "SGDP.xlsx")) # dt_table()
+
+#' ### Greenland
+test_samples_meta_result_df_ %>% filter(Study == "UpgradeGreenland") %>% select(-Study) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "UpgradeGreenland.xlsx")) # dt_table()
+
+#' ### gnomAD
+test_samples_meta_result_df_ %>% filter(Study == "gnomAD") %>% select(-Study) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "gnomAD.xlsx")) # dt_table()
+
+## REFERENCE SAMPLES
+
+#' ### Sub Sahara
+
+ref_samples_meta_result_df_ %>% filter(Continent == "Sub Sahara") %>% select(-Continent) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "Sub Sahara.xlsx")) # dt_table()
+
+#' ### Horn of Africa
+
+ref_samples_meta_result_df_ %>% filter(Continent == "Horn of Africa") %>% select(-Continent) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "Horn of Africa.xlsx")) # dt_table()
+
+#' ### North Africa
+
+ref_samples_meta_result_df_ %>% filter(Continent == "North Africa") %>% select(-Continent) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "North Africa.xlsx")) # dt_table()
+
+#' ### Middle East
+
+ref_samples_meta_result_df_ %>% filter(Continent == "Middle East") %>% select(-Continent) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "Middle East.xlsx")) # dt_table()
+
+#' ### Europe
+
+ref_samples_meta_result_df_ %>% filter(Continent == "Europe") %>% select(-Continent) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "Europe.xlsx")) # dt_table()
+
+#' ### East Asia
+
+ref_samples_meta_result_df_ %>% filter(Continent == "East Asia") %>% select(-Continent) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "East Asia.xlsx")) # dt_table()
+
+#' ### South/Central Asia
+
+ref_samples_meta_result_df_ %>% filter(Continent == "South/Central Asia") %>% select(-Continent) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "South-Central Asia.xlsx")) # dt_table()
+
+#' ### West Greenland
+
+ref_samples_meta_result_df_ %>% filter(Continent == "West Greenland") %>% select(-Continent) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "West Greenland.xlsx")) # dt_table()
+
+#' ### East Greenland
+
+ref_samples_meta_result_df_ %>% filter(Continent == "East Greenland") %>% select(-Continent) %>%
+  mutate(across(where(is.numeric), ~round(.x, 2)), across(where(is.character), ~factor(.x))) %>%
+  rio::export(file = paste0(file_path, "East Greenland.xlsx")) # dt_table()
+
+#' # Aggregated results
+
+#' ## Only *pure*
+#'
+#' ### Test samples
+
+test_samples_meta_tab <- test_samples_meta_result_df %>%
+  mutate(Continent = ifelse(Continent == "Somalia", "Horn of Africa", Continent)) %>%
+  count(Continent, outcome_status, outcome_accepted) %>%
+  mutate(outcome_accepted = meta_Meta[outcome_accepted]) %>%
+  mutate(outcome__status = ifelse(outcome_status == "Accepted", outcome_accepted, outcome_status)) %>%
+  #
+  mutate(
+    Continent = factor(Continent, levels = Continent_levels),
+    outcome__status = factor(outcome__status, levels = c("Rejected", "Ambiguous", unname(meta_Meta)))
+    ) %>%
+  arrange(Continent, outcome__status) %>%
+  #
+  select(-(outcome_status:outcome_accepted)) %>%
+  pivot_wider(names_from = outcome__status, values_from = n, values_fill = 0L) %>%
+  rowwise() %>%
+  mutate(n_samples = sum(c_across(-Continent))) %>%
+  ungroup %>%
+  select(any_of(first_cols), everything())
+test_samples_meta_tab %>%
+  kable_
+
+#' #### Naive calculations
+
+test_samples_meta_naive <- test_samples_meta_result_df %>%
+  mutate(Continent = ifelse(Continent == "Somalia", "Horn of Africa", Continent)) %>%
+  mutate(
+    meta_logP = map_chr(meta, naive_assignment)
+    ) %>%
+  count(Continent, meta_logP) %>%
+  mutate(Continent = factor(Continent, levels = Continent_levels)) %>%
+  arrange(Continent) %>%
+  group_by(Continent) %>%
+  mutate(
+    Correct = sum(n[Continent == meta_logP]),
+    Incorrect = sum(n[Continent != meta_logP]),
+    `Incorrect rate` = Incorrect / (Correct + Incorrect)
+  ) %>%
+  ungroup %>%
+  pivot_wider(names_from = meta_logP, values_from = n, values_fill = 0L)
+
+test_samples_meta_naive %>%
+  mutate(`Incorrect rate` = sprintf("%.02f%%", `Incorrect rate`*100)) %>%
+  rename(`Incorrect %` = `Incorrect rate`) %>%
+  kable_()
+
+#' ### Reference samples
+#'
+#' **Analysed using Leave-One-Out**
+
+ref_samples_result_tab <- ref_samples_result_df  %>%
+  mutate(Continent = ifelse(Continent == "Somalia", "Horn of Africa", Continent)) %>%
+  count(Continent, outcome_status, outcome_accepted) %>%
+  mutate(outcome_accepted = meta_Meta[outcome_accepted]) %>%
+  mutate(outcome__status = ifelse(outcome_status == "Accepted", outcome_accepted, outcome_status)) %>%
+  #
+  mutate(
+    Continent = factor(meta_Meta[Continent], levels = meta_Meta),
+    outcome__status = factor(outcome__status, levels = c("Rejected", "Ambiguous", unname(meta_Meta)))
+  ) %>%
+  arrange(Continent, outcome__status) %>%
+  #
+  select(-(outcome_status:outcome_accepted)) %>%
+  pivot_wider(names_from = outcome__status, values_from = n, values_fill = 0L) %>%
+  rowwise() %>%
+  mutate(n_samples = sum(c_across(-Continent))) %>%
+  ungroup %>%
+  select(any_of(first_cols), everything())
+ref_samples_result_tab %>%
+  kable_
+
+#' #### Naive calculations
+
+ref_samples_meta_naive <- ref_samples_result_df %>%
+  mutate(
+    meta_logP = map_chr(meta, naive_assignment),
+    Continent = ifelse(Continent == "Somalia", "Horn of Africa", Continent)
+  ) %>%
+  count(Continent, meta_logP) %>%
+  mutate(Continent = meta_Meta[Continent]) %>%
+  mutate(Continent = factor(Continent, levels = meta_Meta)) %>%
+  arrange(Continent) %>%
+  group_by(Continent) %>%
+  mutate(
+    Correct = sum(n[Continent == meta_logP]),
+    Incorrect = sum(n[Continent != meta_logP]),
+    `Incorrect rate` = Incorrect / (Correct + Incorrect)
+  ) %>%
+  ungroup %>%
+  pivot_wider(names_from = meta_logP, values_from = n, values_fill = 0L)
+
+ref_samples_meta_naive %>%
+  mutate(`Incorrect rate` = sprintf("%.02f%%", `Incorrect rate`*100)) %>%
+  rename(`Incorrect %` = `Incorrect rate`) %>%
+  kable_()
+
+#' ## Only admixed
+#'
+#' ### Test samples
+#'
+
+
+test_samples_meta_admix_tab <- test_samples_meta_result_df %>%
+  count(Continent, outcome_admix_status, outcome_admix_accepted) %>%
+  mutate(outcome_admix_accepted = meta_Meta_admix[outcome_admix_accepted]) %>%
+  mutate(outcome_admix__status = ifelse(outcome_admix_status == "Accepted",
+                                        outcome_admix_accepted, outcome_admix_status)) %>%
+  #
+  mutate(
+    Continent = factor(Continent, levels = Continent_levels),
+    outcome_admix__status = factor(outcome_admix__status,
+                                   levels = c("Rejected", "Ambiguous", unname(meta_Meta_admix)))
+  ) %>%
+  arrange(Continent, outcome_admix__status) %>%
+  #
+  select(-(outcome_admix_status:outcome_admix_accepted)) %>%
+  pivot_wider(names_from = outcome_admix__status, values_from = n, values_fill = 0L) %>%
+  rowwise() %>%
+  mutate(n_samples = sum(c_across(-Continent))) %>%
+  ungroup %>%
+  select(any_of(first_cols), any_of(unname(meta_Meta_admix)))
+test_samples_meta_admix_tab %>%
+  kable_
+
+#'
+#' **NB!** All cases would be wrongly assigned here by the naïve method since all samples are
+#' **pure**, i.e. non-admixed
+#'
+
+#' ### Reference samples
+#'
+#' **Analysed using Leave-One-Out**
+
+ref_samples_meta_admix_tab <- ref_samples_result_df %>%
+  count(Continent, outcome_admix_status, outcome_admix_accepted) %>%
+  mutate(outcome_admix_accepted = meta_Meta_admix[outcome_admix_accepted]) %>%
+  mutate(outcome_admix__status = ifelse(outcome_admix_status == "Accepted",
+                                        outcome_admix_accepted, outcome_admix_status)) %>%
+  #
+  mutate(
+    Continent = factor(meta_Meta[Continent], levels = meta_Meta),
+    outcome_admix__status = factor(outcome_admix__status,
+                                   levels = c("Rejected", "Ambiguous", unname(meta_Meta_admix)))
+  ) %>%
+  arrange(Continent, outcome_admix__status) %>%
+  #
+  select(-(outcome_admix_status:outcome_admix_accepted)) %>%
+  pivot_wider(names_from = outcome_admix__status, values_from = n, values_fill = 0L) %>%
+  rowwise() %>%
+  mutate(n_samples = sum(c_across(-Continent))) %>%
+  ungroup %>%
+  select(any_of(first_cols), any_of(unname(meta_Meta_admix)))
+ref_samples_meta_admix_tab %>%
+  kable_
+
+#'
+#' **NB!** All cases would be wrongly assigned here by the naïve method since all samples are
+#' **pure**, i.e. non-admixed
+#'
+
+#' ## Pure and admixed
+#'
+#' ### Test samples
+
+test_samples_meta_all_tab <- test_samples_meta_result_df %>%
+  count(Continent, outcome_all_status, outcome_all_accepted) %>%
+  mutate(outcome_all_accepted = meta_Meta_admix[outcome_all_accepted]) %>%
+  mutate(outcome_all__status = ifelse(outcome_all_status == "Accepted",
+                                        outcome_all_accepted, outcome_all_status)) %>%
+  #
+  mutate(
+    Continent = factor(Continent, levels = Continent_levels),
+    outcome_all__status = factor(outcome_all__status,
+                                   levels = c("Rejected", "Ambiguous", unname(meta_Meta_all)))
+  ) %>%
+  arrange(Continent, outcome_all__status) %>%
+  #
+  select(-(outcome_all_status:outcome_all_accepted)) %>%
+  pivot_wider(names_from = outcome_all__status, values_from = n, values_fill = 0L) %>%
+  rowwise() %>%
+  mutate(n_samples = sum(c_across(-Continent))) %>%
+  ungroup %>%
+  select(any_of(first_cols), any_of(unname(meta_Meta_admix)))
+
+and <- test_samples_meta_all_tab %>% names(.) %>% grep("\\&", .)
+and_above <- test_samples_meta_all_tab %>% names(.) %>% {.[and]} %>%
+  sub(" \\&.*", "", .)
+and_below <- test_samples_meta_all_tab %>% names(.) %>% sub("^.*\\& ", "", .)
+and_rle <- rle(and_above)
+and_at <- c(" " = min(and)-1L, set_names(and_rle$lengths, and_rle$values))
+and_at_pure <- rep(names(and_at), and_at) == and_below
+and_below[and_at_pure] <- "Pure"
+
+test_samples_meta_all_tab %>%
+  set_names(and_below) %>%
+  kable_ %>%
+  add_header_above(and_at) %>%
+  column_spec(which(!and_at_pure[-seq_along(first_cols)])+length(first_cols), italic = TRUE)
+
+#' #### Naive Calculations
+
+meta_Meta_admix__ <- meta_Meta_admix
+meta_Meta_admix__[names(meta_Meta)] <- meta_Meta
+
+test_samples_meta_all_naive <- test_samples_meta_result_df %>%
+  mutate(
+    meta_logP = map_chr(meta, naive_assignment),
+    admix_logP = map_chr(meta_admix, naive_assignment),
+    all_logP = map2_chr(meta, meta_admix, ~ bind_rows(.x, .y) %>% naive_assignment)
+  ) %>% count(Continent, all_logP) %>%
+  mutate(
+    Continent = ifelse(Continent == "Somalia", "Horn of Africa", Continent)
+  ) %>%
+  arrange(Continent) %>%
+  group_by(Continent) %>%
+  mutate(
+    Correct = sum(n[Continent == all_logP]),
+    Incorrect = sum(n[Continent != all_logP]),
+    `Incorrect rate` = Incorrect / (Correct + Incorrect)
+    ) %>%
+  ungroup() %>%
+  mutate(
+    Continent = factor(Continent, levels = Continent_levels),
+    all_logP = factor(all_logP, levels = meta_Meta_admix__)
+  ) %>%
+  arrange(Continent, all_logP) %>%
+  pivot_wider(names_from = all_logP, values_from = n, values_fill = 0L)
+
+test_samples_meta_all_naive %>%
+  mutate(`Incorrect rate` = sprintf("%.02f%%", `Incorrect rate`*100)) %>%
+  rename(`Incorrect %` = `Incorrect rate`) %>%
+  kable_()
+
+
+#' ### Reference samples
+#'
+#' **Analysed using Leave-One-Out**
+
+ref_samples_meta_all_tab <- ref_samples_result_df %>%
+  count(Continent, outcome_all_status, outcome_all_accepted) %>%
+  mutate(outcome_all_accepted = meta_Meta_admix[outcome_all_accepted]) %>%
+  mutate(outcome_all__status = ifelse(outcome_all_status == "Accepted",
+                                      outcome_all_accepted, outcome_all_status)) %>%
+  #
+  mutate(
+    Continent = factor(meta_Meta[Continent], levels = meta_Meta),
+    outcome_all__status = factor(outcome_all__status,
+                                 levels = c("Rejected", "Ambiguous", unname(meta_Meta_all)))
+  ) %>%
+  arrange(Continent, outcome_all__status) %>%
+  #
+  select(-(outcome_all_status:outcome_all_accepted)) %>%
+  pivot_wider(names_from = outcome_all__status, values_from = n, values_fill = 0L) %>%
+  rowwise() %>%
+  mutate(n_samples = sum(c_across(-Continent))) %>%
+  ungroup %>%
+  select(any_of(first_cols), any_of(unname(meta_Meta_admix)))
+
+and <- ref_samples_meta_all_tab %>% names(.) %>% grep("\\&", .)
+and_above <- ref_samples_meta_all_tab %>% names(.) %>% {.[and]} %>% sub(" \\&.*", "", .)
+and_below <- ref_samples_meta_all_tab %>% names(.) %>% sub("^.*\\& ", "", .)
+and_rle <- rle(and_above)
+and_at <- c(" " = min(and)-1L, set_names(and_rle$lengths, and_rle$values))
+and_at_pure <- rep(names(and_at), and_at) == and_below
+and_below[and_at_pure] <- "Pure"
+
+ref_samples_meta_all_tab %>%
+  set_names(and_below) %>%
+  kable_ %>%
+  add_header_above(and_at) %>%
+  column_spec(which(!and_at_pure[-seq_along(first_cols)])+length(first_cols), italic = TRUE)
+
+#' #### Naive calculations
+
+ref_samples_meta_naive <- ref_samples_result_df %>%
+  mutate(
+    all_logP = map2_chr(meta, meta_admix, ~ bind_rows(.x, .y) %>% naive_assignment),
+    Continent = meta_Meta[Continent],
+    Continent = ifelse(Continent == "Somalia", "Horn of Africa", Continent)
+  ) %>%
+  count(Continent, all_logP) %>%
+  group_by(Continent) %>%
+  mutate(
+    Correct = sum(n[Continent == all_logP]),
+    Incorrect = sum(n[Continent != all_logP]),
+    `Incorrect rate` = Incorrect / (Correct + Incorrect)
+  ) %>%
+  ungroup %>%
+  mutate(
+    Continent = factor(Continent, levels = meta_Meta),
+    all_logP = factor(all_logP, levels = meta_Meta_admix__)
+    ) %>%
+  arrange(Continent, all_logP) %>%
+  pivot_wider(names_from = all_logP, values_from = n, values_fill = 0L)
+
+ref_samples_meta_naive %>%
+  mutate(`Incorrect rate` = sprintf("%.02f%%", `Incorrect rate`*100)) %>%
+  rename(`Incorrect %` = `Incorrect rate`) %>%
+  kable_()
