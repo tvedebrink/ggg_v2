@@ -2,28 +2,7 @@
 #'
 #' Plots the results from LRT on a map based on lat/lon info in the database.
 #' If no location is found in the data (e.g. using \code{simulte_pops}) nothing is plotted.
-#'
-#' @author Torben Tvedebrink, \email{tvede@@math.aau.dk}
-#' @param data The output from the \code{genogeo} function
-#' @return A map with population z-scores at their geographic origin
-#' @export
-#' @examples
-#' df_ <- simulate_pops(pop_n = 4, aims_n = 50)
-#' df_db <- pops_to_DB(df_)
-#' profile <- random_AIMs_profile(df_db, keep_pop = TRUE)
-#' profile$pop[1] # The true population
-#' result <- genogeo(profile[,c("locus","x0")], df = df_db, min_n = 0)
-#' result$lon <- runif(n = 4, min = -125, max = 125)
-#' result$lat <- runif(n = 4, min = -50, max = 80)
-#' \dontrun{map_plot(result)}
-map_plot <- function(data){
-  if(names(data)[1] == "pop") return(map_pop_plot(data))
-  else if(names(data)[1] == "meta") return(map_meta_plot(data))
-  else return(NULL)
-}
-
-library(leaflet)
-library(leaflet.providers)
+#' @param z_df Result from `genogeo()`
 
 leaflet_plot <- function(z_df = NULL){
   db_info <- attr(z_df, "info")
@@ -33,14 +12,14 @@ leaflet_plot <- function(z_df = NULL){
     groups <- if(group == "pop") "population" else "metapopulation"
     groups_ <- sym(groups)
     db_info <- db_info %>% rowwise() %>%
-      mutate(lab = list(htmltools::HTML(sprintf("<b>%s</b><br/>%s samples", !!groups_, n)))) %>%
+      mutate(lab = list(HTML(sprintf("<b>%s</b><br/>%s samples", !!groups_, n)))) %>%
       ungroup()
     if(!is.null(z_df)){
       db_info <- z_df %>% left_join(db_info, by = group)
       db_info$colour <- bar_colour(select(db_info, !!group_, logP, accept)) %>% unname()
       db_info <- db_info %>% mutate(log_P = logP*(-1)^(!accept))
       db_info <- db_info %>% rowwise() %>%
-        mutate(lab = list(htmltools::HTML(
+        mutate(lab = list(HTML(
           sprintf("
                   <b>%s</b> (<i>%s samples</i>)<br/>
                   <b><i>z</i>-score:</b> %0.2f (%s)<br/>

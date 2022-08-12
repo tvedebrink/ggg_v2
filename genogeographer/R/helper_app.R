@@ -31,7 +31,7 @@ result_table <- function(result, flat = FALSE, lr_listed = ""){
     )
   if(flat) return(kable(result))
   result %>% set_names(sub("10", "<sub>10</sub>", names(.))) %>%
-    DT::datatable(rownames=FALSE, filter = "bottom", escape = FALSE,
+    datatable(rownames=FALSE, filter = "bottom", escape = FALSE,
                   selection = list(mode = "multiple", target = "row"), #'none',
                   extensions = 'Buttons', options = list(
                     dom = 'Blfrtip',

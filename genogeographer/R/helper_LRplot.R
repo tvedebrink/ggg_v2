@@ -40,19 +40,19 @@ single_LRplot <- function(data, num, colours, x_lim, high = NULL){
 #' @param result Result from \code{genogeo}. At least one of \code{result} and \code{LR_list} is needed.
 #' @param LR_list Result from \code{LR_table}. At least one of \code{result} and \code{LR_list} is needed.
 #' @param rows Which rows from LR list (or the computed) are used
-#' @param theme_ The ggplot2 theme
+#' @param plot_ly Should plotly be used as the plotting engine (otherwise ggplot2 is used)
+#' @param shiny Is the function being called in a shiny app?
+#' @param which Highlight elements in which
 #' @param ... Additional arguments passed to \code{LR_table}
 #' @return A plot
 #' @export
+#'
+
 LR_plot <- function(result = NULL, LR_list = NULL, rows = NULL, plot_ly = TRUE, shiny = FALSE, which = NULL, ...){
   groups <- names(result)[1]
   groups_ <- sym(groups)
   grouping <- if(groups == "pop") "population" else "metapopulation"
   grouping_ <- sym(grouping)
-  ##
-  . <- NULL
-  numerator <- NULL
-  denominator <- NULL
   ##
   if(is.null(LR_list)) LR_list <- LR_table(z_df = result, ...)$LR
   if(is.null(result)) {
@@ -101,7 +101,7 @@ LR_plot <- function(result = NULL, LR_list = NULL, rows = NULL, plot_ly = TRUE, 
   if(LR_range[2] < 0) LR_range[2] <- 0
   LR_plots <- LR_list %>%
     split(.$Numerator, drop = TRUE) %>%
-    map(~.x %>% mutate(denominator = fct_reorder(denominator, logLR, .desc = TRUE))) %>%
+    purrr::map(~.x %>% mutate(denominator = fct_reorder(denominator, logLR, .desc = TRUE))) %>%
     purrr::imap(~
       list(plot = single_LRplot(data = .x, num = .y, x_lim = LR_range,
                                 colours = list(den = colour_den, num = colour_num), high = LR_highlight),
@@ -137,10 +137,6 @@ LR_plot_ly <- function(result = NULL, LR_list = NULL, ...){
   groups_ <- sym(groups)
   grouping <- if(groups == "pop") "population" else "metapopulation"
   grouping_ <- sym(grouping)
-  ##
-  . <- NULL
-  numerator <- NULL
-  denominator <- NULL
   ##
   if(is.null(LR_list)){
     LR_list <- LR_table(z_df = result, ...)$LR

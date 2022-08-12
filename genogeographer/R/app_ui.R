@@ -11,7 +11,7 @@ ggg_references <- list(
        title = "Inference of admixed ancestry with Ancestry Informative Markers.",
        journal = "Forensic Science International: Genetics 42, 147-153.",
        year = 2019),
-    list(author = "HS Mogensen, T Tvedebrink, C Børsting, V Pereira, N Morling",
+    list(author = "HS Mogensen, T Tvedebrink, C Borsting, V Pereira, N Morling",
        title = "Ancestry prediction efficiency of the software GenoGeographer using a z-score method and the ancestry informative markers in the Precision ID Ancestry Panel.",
        journal = "Forensic Science International: Genetics 44, 102154.",
        year = 2020)
@@ -22,8 +22,6 @@ ggg_ref <- function(x){
           tags$i(x$title), #tags$br(),
           x$journal)
 }
-
-library(waiter)
 
 ui_api <- function(){
   bootstrapPage(
@@ -101,7 +99,7 @@ ui_api <- function(){
                           which (typically) are biallelic SNPs with pronounced observed variation across geography, ethnicity or culture"),
                           p("The genogeographer methodology is similar to an outlier test, where a genotype is tested for being an outlier
                           in each of the references populations. Hence, an individual can be rejected in ",tags$i("all"), "populations or
-                          accepted in one or more populations. The key point is that a genotyped profoæe can be rejected in all
+                          accepted in one or more populations. The key point is that a genotyped profile can be rejected in all
                           populations if it is too different from the typed reference populations. In an ordinary classification approach,
                           the genotyped profile would be assigned to the least unlikely (or most probable population). That is, the
                           reference populations are exclusive, but not exhaustive, which may cause the conclusions to be wrong."),
@@ -109,7 +107,7 @@ ui_api <- function(){
                           p("This Genogeograher online app is implemented in R with a frontend in Shiny.
                             Care is taken in the implemenation, but the app comes with absolutely no warranty."),
                           p("The app is implemented by Torben Tvedebrink <",
-                            tags$a("tvede@math.aau.dk", href = "mailto:tvede@math.aau.dk", .noWS = "outside"), ">."),
+                            tags$a("genogeographer@tvedebrink.dk", href = "mailto:genogeographer@tvedebrink.dk", .noWS = "outside"), ">."),
                           p("The app is based on ", tags$b(paste("genogeographer version", packageVersion("genogeographer"))),
                             "and associated reference databases."),
                           h4("References"),

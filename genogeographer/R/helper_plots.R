@@ -40,16 +40,11 @@ rgba2rgb <- function(hex_rgba){
 #'
 #' @name error_bar_plot
 #' @author Torben Tvedebrink, \email{tvede@@math.aau.dk}
-#' @param data The output from the \code{genogeo} function
+#' @param result_df The output from the \code{genogeo} function
+#' @param which The populations to highlight
 #' @return A barplot of the log likelihoods for each population with confidence limits
 #' @export
-#' @examples
-#' df_ <- simulate_pops(pop_n = 20, aims_n = 50)
-#' df_db <- pops_to_DB(df_)
-#' profile <- random_AIMs_profile(df_db, keep_pop = TRUE)
-#' profile$pop[1] # The true population
-#' result <- genogeo(profile[,c("locus","x0")], df = df_db)
-#' error_bar_plot(result)
+
 
 error_bar_plot <- function(result_df, which = NULL){
   groups <- names(result_df)[1]

@@ -1,4 +1,4 @@
-library(shinyWidgets)
+options(shiny.maxRequestSize=50*1024^2) ## 50 Mb
 
 dt_simple <- function(tab, ...){
   tab %>%
@@ -31,6 +31,7 @@ server_api <- function(input, output, session){
   lat <- NULL; lon <- NULL; aims_example <- NULL
   ## build fixes : end ##
   if(!exists("db_list")) db_list <- get("db_list", envir = -2)
+  reactive_db_list <- reactiveValues(db = db_list)
   if(!exists("reporting_panel")) reporting_panel <- get("reporting_panel", envir = -2)
 
   observeEvent(input$analyse, {
@@ -125,7 +126,7 @@ server_api <- function(input, output, session){
       h3("Analysed loci"),
       helpText("The loci below has been included in the analysis."),
       renderDT(profile_x0 %>% dt_table),
-      h3("Dropped loci"),
+      h3("Dropped or unused loci"),
       helpText(paste0("The loci below has been excluded from the analysis.\n
                Either because of state 'NN', locus not in '",input$snp_set,"'
                       or other typing error (e.g. different reference allele).")),
@@ -159,8 +160,19 @@ server_api <- function(input, output, session){
     )
   })
 
+  observeEvent(input$db_add, {
+    req(input$db_add)
+    user_db <- readRDS(file = input$db_add$datapath)
+    db_names <- user_db %>% purrr::map(names) %>% unlist() %>% unname() %>% unique()
+    if(length(setdiff(db_names, c("pop", "meta"))) == 0) reactive_db_list$db <- c(reactive_db_list$db, user_db)
+    })
+
   output$dbs <- renderUI({
-    selectInput(inputId = "snp_set", label = "Select frequency database:", choices = names(db_list))
+    verticalLayout(
+      fileInput(inputId = "db_add", "Upload own reference database:", accept = ".rds", width = "100%"),
+      helpText("Ensure that the '.rds'-file is created using genogeographer, e.g. by following the steps under tab 'Add referece population'"),
+      selectInput(inputId = "snp_set", label = "Select reference database:", choices = names(reactive_db_list$db))
+    )
   })
 
   output$fileUploaded <- reactive({
@@ -206,7 +218,10 @@ server_api <- function(input, output, session){
     }
     if(col_return || (input$col_locus == input$col_genotype)) return(NULL)
     ##
-    genotype_x0(profile = profile, locus = input$col_locus, genotype = input$col_genotype)
+    ggg_db <- attr(reactive_db_list$db[[input$snp_set]]$meta$db, "allele_list")
+    # browser()
+    ##
+    genotype_x0(profile = profile, locus = input$col_locus, genotype = input$col_genotype, ggg = ggg_db)
   })
 
   reactive_result <- eventReactive(list(input$profile_file,input$analyse),{
@@ -217,9 +232,9 @@ server_api <- function(input, output, session){
     ## ADMIXTURE
     admix_control <- if(is.null(input$admix)) FALSE else (input$admix == "admix")
     ## COMPUTE
-    res <- ggg_score(profile_x0 = profile, DB = db_list[[input$snp_set]][[input$meta]]$db, CI = input$CI/100, tilt = tilt_control)
+    res <- ggg_score(profile_x0 = profile, DB = reactive_db_list$db[[input$snp_set]][[input$meta]]$db, CI = input$CI/100, tilt = tilt_control)
     if(admix_control){
-      res_admix <- ggg_score(profile_x0 = profile, DB = db_list[[input$snp_set]][[input$meta]]$admix, CI = input$CI/100, tilt = FALSE)
+      res_admix <- ggg_score(profile_x0 = profile, DB = reactive_db_list$db[[input$snp_set]][[input$meta]]$admix, CI = input$CI/100, tilt = FALSE)
       info <- bind_rows(attr(res, "info"), attr(res_admix, "info"))
       res <- bind_rows(res, res_admix) %>% arrange(desc(logP))
       attr(res, "info") <- info
@@ -465,6 +480,7 @@ server_api <- function(input, output, session){
 
   reactive_dataset <- reactiveValues(columns = NULL, rs = NULL, success = NULL, is_excel = NULL)
   reactive_info <- reactiveValues(columns = NULL, outofplace = NULL, success = NULL, is_excel = NULL)
+  reactive_x1 <- reactiveValues(db = NULL)
 
   observeEvent(input$col_POP,{
     reactive_info$outofplace <- unique(reactive_selected_info()[[input$col_POP]])
@@ -562,6 +578,9 @@ server_api <- function(input, output, session){
   })
 
   output$info_panel <- renderUI({
+    info_columns <- reactive_info$columns
+    info_outofplace <- reactive_info$outofplace
+
     sel_POP <- input$col_POP
     sel_population <- input$col_population
     sel_META <- input$col_META
@@ -569,8 +588,6 @@ server_api <- function(input, output, session){
     sel_lat <- input$col_lat
     sel_lon <- input$col_lon
     sel_outofplace <- input$col_outofplace
-    info_columns <- reactive_info$columns
-    info_outofplace <- reactive_info$outofplace
 
     verticalLayout(
       helpText("Select columns containing the specified information below:"),
@@ -625,14 +642,16 @@ server_api <- function(input, output, session){
   })
 
   observeEvent(input$comp_x1, {
+  ## reactive_db_x1 <- reactive({
+    #req(input$comp_x1)
     data_ <- reactive_selected_data() %>%
-      rename(sample = input$col_sample, pop = input$col_pop, meta = input$col_meta)
+      rename(sample = isolate(input$col_sample), pop = isolate(input$col_pop), meta = isolate(input$col_meta))
     n_pop <- length(unique(data_$pop))
     n_meta <- length(unique(data_$meta))
     info_ <- reactive_selected_info() %>%
-      rename(pop = input$col_POP, population = input$col_population,
-             meta = input$col_META, metapopulation = input$col_metapopulation,
-             lat = input$col_lat, lon = input$col_lon)
+      rename(pop = isolate(input$col_POP), population = isolate(input$col_population),
+             meta = isolate(input$col_META), metapopulation = isolate(input$col_metapopulation),
+             lat = isolate(input$col_lat), lon = isolate(input$col_lon))
     n_comp <- c(0,cumsum(c(n_pop, n_meta, choose(n_pop, 2), choose(n_meta, 2))))
     # print(n_comp)
     shiny_progress <- list(n = n_comp[length(n_comp)], session = session)
@@ -640,25 +659,25 @@ server_api <- function(input, output, session){
     ##
     withProgressWaitress({
     pop_DB <- make_x1(df = data_, latlon = info_, groups = "pop", exclude = c("sample", "meta"),
-                      shiny = c(shiny_progress, list(start = n_comp[1])))
+                      allele_list = ggg_allele_list, shiny = c(shiny_progress, list(start = n_comp[1])))
     meta_DB <- make_x1(df = data_, latlon = info_, groups = "meta", exclude = c("sample", "pop"),
-                       out_of_place = input$col_outofplace, shiny = c(shiny_progress, list(start = n_comp[2])))
+                       allele_list = ggg_allele_list, out_of_place = isolate(input$col_outofplace), shiny = c(shiny_progress, list(start = n_comp[2])))
     pop_DB_1admix <- admix_dbs(pop_DB, shiny = c(shiny_progress, list(start = n_comp[3])))
     meta_DB_1admix <- admix_dbs(meta_DB, shiny = c(shiny_progress, list(start = n_comp[4])))
     }, selector = "#download_x1", max = 100, theme = "overlay-percent")
     db_list <- list(list(pop = list(db = pop_DB, admix = pop_DB_1admix),
                     meta = list(db = meta_DB, admix = meta_DB_1admix))) %>%
-      set_names(sub("\\..*$", "", input$dataset_file$name))
-    db_x1 <<- db_list
+      set_names(sub("\\..*$", "", isolate(input$dataset_file$name)))
+    reactive_x1$db <- db_list
     shinyjs::enable("download_x1")
   })
 
   output$download_x1 <- downloadHandler(
     filename = function() {
-      paste0(sub("\\..*$", "", input$dataset_file$name), ".Rds")
+      paste0(sub("\\..*$", "", input$dataset_file$name), ".rds")
     },
     content = function(file) {
-      saveRDS(db_x1, file)
+      saveRDS(reactive_x1$db, file)
     }
   )
 

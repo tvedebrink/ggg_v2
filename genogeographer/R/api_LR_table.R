@@ -11,13 +11,6 @@
 #' @author Torben Tvedebrink \email{tvede@math.aau.dk}
 #' @return A tibble with numerator and denominator populations with their log10 LR and uncertainty.
 #' @export
-#' @examples
-#' df_ <- simulate_pops(pop_n = 4, aims_n = 50)
-#' df_db <- pops_to_DB(df_)
-#' profile <- random_AIMs_profile(df_db, keep_pop = TRUE)
-#' profile$pop[1] # The true population
-#' result <- genogeo(profile[,c("locus","x0")], df = df_db)
-#' LR_table(result)
 
 LR_table <- function(z_df, who = NULL, only_accepted = TRUE, CI = 0.95){
   z <- qnorm((1-CI)/2, lower.tail = FALSE)

@@ -1,20 +1,7 @@
-library(parallel)
-library(tidyverse)
-#
-# library(furrr)
-#
-# plan(multisession, workers = ceiling(availableCores()/2L))
 
-## path ## defined in 'valid_v2.R'
-
-## source("R/helper_db.R")
-
-ggg_allele_list <- read_rds("data/ggg_allele_list.Rds")
-kidd_loci <- read_rds("data/kidd_loci.Rds")
-seldin_loci <- read_rds("data/seldin_loci.Rds")
 ## Remember tri and tetra allelic loci! x1, x2, x3, x4 (at some point)
 
-genotype_x0 <- function(profile, locus = "locus", genotype = "genotype", ggg = ggg_allele_list){
+genotype_x0 <- function(profile, locus = "locus", genotype = "genotype", ggg = NULL){
   profile <- na.omit(profile)
   if(genotype %in% names(profile)) genotype_ <- sym(genotype)
   else genotype_ <- sym(genotype_guess(profile)[1])
@@ -66,9 +53,9 @@ lat_lon <- function(df_latlon, df_n, groups, lat = "lat", lon = "lon", out_of_pl
     df <- df %>% filter(!(pop %in% out_of_place)) %>%
       select(-starts_with("pop")) %>% nest(latlon = -starts_with("meta")) %>%
       mutate(
-        convex_hull = map(latlon, ~ .x[chull(x = .x[[lon]], y = .x[[lat]]),] %>% select(-n)),
+        convex_hull = purrr::map(latlon, ~ .x[chull(x = .x[[lon]], y = .x[[lat]]),] %>% select(-n)),
         n = map_int(latlon, ~.x %>% pull(n) %>% as.integer() %>% sum()) %>% paste(),
-        latlon = map(latlon, ~.x %>% summarise(across(-n, ~weighted.mean(.x, w = as.integer(n)))))
+        latlon = purrr::map(latlon, ~.x %>% summarise(across(-n, ~weighted.mean(.x, w = as.integer(n)))))
         ) %>%
       unnest(latlon)
   }
@@ -89,7 +76,7 @@ incProgress_trick <- function(trick = FALSE, message = NULL, detail = NULL, sess
 }
 
 
-make_x1 <- function(df, latlon = NULL, groups, allele_list = ggg_allele_list,
+make_x1 <- function(df, latlon = NULL, groups, allele_list = NULL,
                     out_of_place = NULL, lat = "lat", lon = "lon", shiny = NULL, ...){
   dfc <- count_alleles(df, groups = groups, ...) ## returns: list(samples={}, alleles = {{groups}}, locus, allele, n)
   df_s <- dfc$samples
@@ -145,11 +132,14 @@ make_x1 <- function(df, latlon = NULL, groups, allele_list = ggg_allele_list,
     latlon <- lat_lon(df_latlon = latlon, df_n = df_s, lat = lat, lon = lon, groups = groups, out_of_place = out_of_place)
     attr(x1, "info") <- latlon
   }
+  attr(x1, "allele_list") <- allele_list
   x1
 }
 
 locus_set <- function(db, locusset){
-  db %>% mutate(data = purrr::map(data, ~ semi_join(.x, locusset, by = "locus")))
+  db <- db %>% mutate(data = purrr::map(data, ~ semi_join(.x, locusset, by = "locus")))
+  attr(db, "allele_list") <- semi_join(attr(db, "allele_list"), locusset, by = "locus")
+  db
 }
 
 db_set <- function(db, locusset){
@@ -160,6 +150,7 @@ db_set <- function(db, locusset){
 
 admix_dbs <- function(dbs, tol = 1e-8, pops = NULL, no_cores = NULL, shiny = NULL){
   if("info" %in% names(attributes(dbs))) info <- attr(dbs, "info")
+  if("allele_list" %in% names(attributes(dbs))) allele_list <- attr(dbs, "allele_list")
   ### FIX FIX for names to be used in tables and plots (set lat/lon to NA)
   if(is.null(no_cores)) no_cores <- ceiling(parallel::detectCores()/2L)
   else{
@@ -243,13 +234,14 @@ admix_dbs <- function(dbs, tol = 1e-8, pops = NULL, no_cores = NULL, shiny = NUL
   #
   dbs <- dbs %>%
     mutate(
-      data = map(data, ~.x %>%
+      data = purrr::map(data, ~.x %>%
                    unite(x1, x1, x2, sep = " & ") %>% unite(n, n1, n2, sep = " & ") %>%
                    mutate(across(c(f1,f2), ~ round(.x, 2))) %>% unite(freq, f1, f2, sep = " & ") %>%
                    select(-p1,-p2)
                  )
       )
   attr(dbs, "info") <- info_pairs
+  attr(dbs, "allele_list") <- allele_list
   dbs
 }
 
