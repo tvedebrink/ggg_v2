@@ -31,6 +31,7 @@ server_api <- function(input, output, session){
   lat <- NULL; lon <- NULL; aims_example <- NULL
   ## build fixes : end ##
   if(!exists("db_list")) db_list <- get("db_list", envir = -2)
+  if(is.null(db_list)) disable("analyse")
   reactive_db_list <- reactiveValues(db = db_list)
   if(!exists("reporting_panel")) reporting_panel <- get("reporting_panel", envir = -2)
 
@@ -42,7 +43,7 @@ server_api <- function(input, output, session){
   ## USER INTERFACE
   output$analysis <- renderUI({
     res <- reactive_result()
-    prof <- reactive_profile()
+    # prof <- reactive_profile()
     dat <- reactive_read_profile()
     if(is.null(res)){
       if(is.null(dat) || nrow(dat) == 0){
@@ -165,6 +166,7 @@ server_api <- function(input, output, session){
     user_db <- readRDS(file = input$db_add$datapath)
     db_names <- user_db %>% purrr::map(names) %>% unlist() %>% unname() %>% unique()
     if(length(setdiff(db_names, c("pop", "meta"))) == 0) reactive_db_list$db <- c(reactive_db_list$db, user_db)
+    if(!is.null(reactive_db_list$db)) enable("analyse")
     })
 
   output$dbs <- renderUI({
@@ -205,7 +207,6 @@ server_api <- function(input, output, session){
   reactive_profile <- reactive({
     profile <- reactive_read_profile()
     if(is.null(profile) | nrow(profile) == 0) return(NULL) ## No profile
-    ##
     nprofile <- names(profile)
     col_return <- FALSE
     if(!(input$col_locus %in% nprofile)){
@@ -245,7 +246,8 @@ server_api <- function(input, output, session){
   output$side_pvalue <- renderUI({
     res <- reactive_result()
     if(is.null(res)) return(NULL)
-    groups <- if(is.null(input$meta)) "meta" else input$meta
+    input_meta <- isolate(input$meta)
+    groups <- if(is.null(input_meta)) "meta" else input_meta
     groups_ <- sym(groups)
     grouping <- if(groups == "meta") "metapopulation" else "population"
     grouping_ <- sym(grouping)
@@ -294,7 +296,7 @@ server_api <- function(input, output, session){
   output$barplot <- renderPlotly({
     res <- reactive_result()
     if(is.null(res)) return(NULL)
-    ebp <- error_bar_plotly(result_df = res, which = input$result_table_rows_selected)
+    ebp <- error_bar_plotly(result_df = res, which = isolate(input$result_table_rows_selected))
     height <- session$clientData$output_barplot_height
     width <- session$clientData$output_barplot_width
     ebp %>% ggplotly(tooltip = c("text"), height = width*0.8, width = width) %>%
@@ -310,7 +312,8 @@ server_api <- function(input, output, session){
     if(is.null(res)) return(NULL)
     db_info <- attr(res, "info")
     if(!is.null(db_info)){
-      groups <- if(is.null(input$meta)) "meta" else input$meta
+      input_meta <- isolate(input$meta)
+      groups <- if(is.null(input_meta)) "meta" else input_meta
       groups_ <- sym(groups)
       grouping <- if(groups == "meta") "metapopulation" else "population"
       grouping_ <- sym(grouping)
@@ -326,7 +329,8 @@ server_api <- function(input, output, session){
   output$LR_select <- renderUI({
     res <- reactive_result()
     if(is.null(res)) return(NULL)
-    groups <- if(is.null(input$meta)) "meta" else input$meta
+    input_meta <- isolate(input$meta)
+    groups <- if(is.null(input_meta)) "meta" else input_meta
     groups_ <- sym(groups)
     grouping <- if(groups == "meta") "metapopulation" else "population"
     grouping_ <- sym(grouping)

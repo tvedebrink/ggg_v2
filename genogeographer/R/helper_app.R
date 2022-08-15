@@ -11,7 +11,7 @@ result_table <- function(result, flat = FALSE, lr_listed = ""){
   lat <- NULL; lon <- NULL
   ## build fixes : end ##
   if (is.null(result)) return(NULL)
-  row_colours_hex <- bar_colour(result[,c("logP","accept",groups)], alpha = 0.1)
+  row_colours_hex <- bar_colour(result[,c("logP","accept",groups), drop = FALSE], alpha = 0.1)
   row_colours <- rgba2rgb(row_colours_hex)
   ##
   result <- result %>% ## mutate(n = n/2) %>%

@@ -29,7 +29,7 @@ bar_colour <- function(df, alpha = 1){
 
 rgba2rgb <- function(hex_rgba){
   rgba <- col2rgb(hex_rgba, alpha = TRUE)
-  rgb_ <- rgba[4,]*rgba[1:3,] + (255-rgba[4,])*col2rgb("#FFFFFF")[,rep(1,length(hex_rgba))]
+  rgb_ <- rgba[4,]*rgba[1:3,,drop=FALSE] + (255-rgba[4,])*col2rgb("#FFFFFF")[,rep(1,length(hex_rgba)),drop=FALSE]
   apply(rgb_, 2, function(RGB) rgb(RGB[1], RGB[2], RGB[3], maxColorValue = 255^2))
 }
 
@@ -51,11 +51,7 @@ error_bar_plot <- function(result_df, which = NULL){
   groups_ <- sym(groups)
   grouping <- if(groups == "pop") "population" else "metapopulation"
   grouping_ <- sym(grouping)
-  ## build fixes : start ##
-  logP <- NULL
-  logP_lwr <- NULL
-  logP_upr <- NULL
-  ## build fixes : end ##
+  ##
   db_info <- attr(result_df, "info")
   if(!is.null(db_info)){
     key_name <- db_info %>% select(!!groups_, !!grouping_) %>% deframe()
@@ -64,11 +60,12 @@ error_bar_plot <- function(result_df, which = NULL){
   }
   result_df <- result_df %>%
     mutate(
-      pop_label = sprintf("<b>%s</b> (<i>%s samples</i>)
+      pop_label = sprintf(
+"<b>%s</b> (<i>%s samples</i>)
 <b><i>z</i>-score:</b> %0.2f (%s)
 <b>log<sub>10</sub> P</b>: %0.2f [%0.2f, %0.2f]",
-                          !!groups_, n, z_score, ifelse(accept, "accepted", "rejected"), logP, logP_lwr, logP_upr),
-      !!groups_ := fct_reorder(!!groups_, logP)
+!!groups_, n, z_score, ifelse(accept, "accepted", "rejected"), logP, logP_lwr, logP_upr),
+!!groups_ := fct_reorder(!!groups_, logP)
       )
   logP_range <- c(min(result_df$logP_lwr), max(result_df$logP_upr))
   p1 <- result_df %>%
@@ -77,7 +74,6 @@ error_bar_plot <- function(result_df, which = NULL){
     guides(colour="none") +
     coord_cartesian(xlim = rev(logP_range)) + geom_point() + geom_errorbarh() +
     scale_colour_manual(values = bar_colour(result_df[,c("logP","accept",groups)])) +
-    # scale_x_reverse() +
     theme_bw()
   if(!is.null(which)){
     high <- result_df %>% slice(which) %>%
@@ -90,12 +86,9 @@ error_bar_plot <- function(result_df, which = NULL){
   p1
 }
 
-  error_bar_plotly <- function(result_df, which = NULL){
+error_bar_plotly <- function(result_df, which = NULL){
   group <- ifelse(names(result_df)[1] == "pop", "Population", "Metapopulation")
   plot <- error_bar_plot(result_df = result_df, which = which)
   plot <- plot + labs(y="",x= paste0("log<sub>10</sub> P(Genotype | ", group, ")"))
   plot
-  # plot %>% ggplotly_(tooltip = c("text")) %>%
-  #   layout(showlegend = FALSE) %>%
-  #   config(displayModeBar = FALSE)
 }

@@ -50,6 +50,7 @@ leaflet_plot <- function(z_df = NULL){
   legend_cols <- db_info %>% select(logP, accept, colour) %>%
     slice_pretty(order_by = "logP", split_by = "accept") %>%
     mutate(labP = sprintf("%0.2f", logP))
+  if(nrow(legend_cols) == 1) legend_cols <- bind_rows(legend_cols, legend_cols)
   ggg_map %>% addLegend(data = legend_cols, position = "bottomleft",
                         values = ~log_P, colors = ~colour, labels = ~labP, title = "<b>log<sub>10</sub> P</b>")
 }

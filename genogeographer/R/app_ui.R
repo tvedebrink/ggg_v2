@@ -56,7 +56,7 @@ ui_api <- function(){
                                          uiOutput("LR_select"),
                                          tags$style(type='text/css', "#analyse, #reset, #report_download { width:100%; margin-top: 25px;}"),
                                          withBusyIndicatorUI(
-                                           actionButton(inputId = "analyse", label = "Analyse!", icon = icon("sync"), class = "btn-primary")
+                                           actionButton(inputId = "analyse", label = "Analyse!", icon = icon("calculator"), class = "btn-primary")
                                          ),
                                          actionButton(inputId = "reset", label = "Reset", icon = icon("trash")),
                                          tags$hr(),
