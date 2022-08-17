@@ -13,6 +13,7 @@
 #' @export
 
 LR_table <- function(z_df, who = NULL, only_accepted = TRUE, CI = 0.95){
+  if(nrow(z_df) <= 1) return(NULL)
   z <- qnorm((1-CI)/2, lower.tail = FALSE)
   groups <- names(z_df)[1] ## First cols from z-result is grouping
   groups_ <- sym(groups)

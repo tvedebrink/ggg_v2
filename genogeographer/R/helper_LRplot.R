@@ -114,11 +114,6 @@ LR_plot <- function(result = NULL, LR_list = NULL, rows = NULL, plot_ly = TRUE, 
     min_rel <- min(LR_plots_heights)
     LR_height <- max(500, sum_height*50)
     if(min_rel*LR_height < 100) LR_height <- 100/min_rel
-    # if(shiny){
-    #   info <- shiny::getCurrentOutputInfo()
-    #   plot_height <- info$height()
-    #   plot_width <- info$width()
-    # }
     LR_plots <- LR_plots %>% purrr::map(~ ggplotly(.x$plot, tooltip = c("text"), height = LR_height))
     LR_plots <- subplot(LR_plots, nrows = length(LR_plots), shareX = TRUE, #shareY = TRUE,
                         heights = LR_plots_heights, margin = 0.025) %>%
@@ -131,6 +126,13 @@ LR_plot <- function(result = NULL, LR_list = NULL, rows = NULL, plot_ly = TRUE, 
   LR_plots
 }
 
+vline0 <- function(x = 0, color = "black", dash = "dash") {
+  list(
+    type = "line", line = list(color = color, dash = dash),
+    y0 = 0, y1 = 1, yref = "paper",
+    x0 = x, x1 = x
+  )
+}
 
 LR_plot_ly <- function(result = NULL, LR_list = NULL, ...){
   groups <- names(result)[1]
@@ -140,6 +142,10 @@ LR_plot_ly <- function(result = NULL, LR_list = NULL, ...){
   ##
   if(is.null(LR_list)){
     LR_list <- LR_table(z_df = result, ...)$LR
+    input_order <- NULL
+  }
+  else{
+    input_order <- c(LR_list$numerator, LR_list$denominator) %>% unique()
   }
   ##
   if(is.null(result)) {
@@ -148,6 +154,7 @@ LR_plot_ly <- function(result = NULL, LR_list = NULL, ...){
   }
   else{
     Num_order <- result %>% mutate(!!groups_ := fct_reorder(factor(!!groups_), desc(logP))) %>% pull(!!groups_) %>% levels()
+    if(!is.null(input_order)) Num_order <- unique(c(input_order, Num_order))
     colour_den <- bar_colour(result[,c("logP", "accept", groups)])
     colour_num <- bar_colour(result[,c("logP", "accept", groups)])
   }
@@ -180,8 +187,8 @@ LR_plot_ly <- function(result = NULL, LR_list = NULL, ...){
     )
   ## Use DT table rows to select rows to plot?
   LR_range <- c(min(LR_list$CI_lwr), max(LR_list$CI_upr))
-  if(LR_range[1] > 0) LR_range[1] <- 0
-  if(LR_range[2] < 0) LR_range[2] <- 0
+  if(LR_range[1] > 0) LR_range[1] <- -4
+  if(LR_range[2] < 0) LR_range[2] <- 4
   LR_range[1] <- if(LR_range[1] < 0) LR_range[1]*1.1 else LR_range[1]/1.1
   LR_range[2] <- if(LR_range[2] < 0) LR_range[2]/1.1 else LR_range[2]*1.1
   # browser()
@@ -200,22 +207,25 @@ LR_plot_ly <- function(result = NULL, LR_list = NULL, ...){
       xaxis = list(
         range = LR_range,
         title = "log<sub>10</sub> LR",
-        zerolinedash = "dashed"),
+        zeroline = FALSE),
       yaxis = list(
         side = "left",
         title = "Numerator",
         autorange = "reversed",
         ticktext = as.list(LR_list$numerator),
         tickvals = as.list(LR_list$num_den),
-        tickmode = "array"),
+        tickmode = "array",
+        fixedrange = TRUE),
       yaxis2 = list(
         side = "right",
         title = "Denominator",
+        autorange = "reversed",
         overlaying = "y",
         ticktext = as.list(LR_list$denominator),
         tickvals = as.list(LR_list$num_den),
         tickmode = "array"),
     showlegend = FALSE,
+    shapes = list(vline0(x = 0, dash = "dot")),
     margin = list(l = 0, r = 150, b = 50, t = 10, pad = 0)
     ) %>%
     config(displayModeBar = FALSE)

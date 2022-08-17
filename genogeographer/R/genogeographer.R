@@ -1,14 +1,14 @@
 #'
-#' genogeographer: Methods for analysing forensic Ancestry Informative Markers
+#' genogeographerDEVEL: Methods for analysing forensic Ancestry Informative Markers
 #'
-#' The genogeographer package provides:
-#' genogeo()
+#' The genogeographerDEVEL package provides:
+#' genogeo() app_genegeo()
 #'
 #' @section genogeo functions:
 #' See ?genogeo
 #'
 #' @docType package
-#' @name genogeographer
+#' @name genogeographerDEVEL
 #' @importFrom dplyr starts_with distinct filter select mutate rename row_number
 #' @importFrom dplyr top_n desc pull funs rowwise ungroup arrange case_when bind_rows slice_sample bind_cols
 #' @importFrom dplyr vars group_by summarise n everything between group_vars slice count
@@ -37,7 +37,7 @@
 #' @importFrom shiny downloadLink reactiveValues eventReactive checkboxGroupInput conditionalPanel selectizeInput renderPlot modalDialog
 #' @importFrom shiny fluidRow plotOutput brushOpts clickOpts hoverOpts nearPoints updateSelectizeInput brushedPoints textInput showModal
 #' @importFrom shiny radioButtons downloadButton hr withProgress h4 titlePanel fileInput sliderInput actionButton icon helpText actionLink
-#' @importFrom shiny getCurrentOutputInfo getDefaultReactiveDomain req bootstrapPage navbarPage tabPanel
+#' @importFrom shiny getCurrentOutputInfo getDefaultReactiveDomain req bootstrapPage navbarPage tabPanel isolate
 #' @importFrom shinyjs runjs useShinyjs hidden disable enable show hide delay html
 #' @importFrom shinycssloaders withSpinner
 #' @importFrom shinyWidgets sliderTextInput
@@ -50,6 +50,7 @@
 #' @importFrom parallel mclapply
 #' @importFrom grDevices col2rgb rgb
 utils::globalVariables("where")
+utils::globalVariables("ggg_package")
 utils::globalVariables(c(".", "locus", "x0", "genotype", "pop_label", "neg", "pos", "g1", "g2", "n2_x0",
                          "lat", "lon", "convex_hull", "freq", "score", "z_exp", "ggg", "ggg_allele_list", "CI_logP",
                          "logP", "varlogP", "z_raw", "z_var", "z_score", "p_value", "logP_lwr", "logP_upr", "min_logP",

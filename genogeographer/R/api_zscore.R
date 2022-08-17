@@ -2,9 +2,21 @@ non_list_cols <- function(df){
   names(df)[df %>% map_lgl(~ !any(class(.x) %in% "list"))]
 }
 
-ggg_score <- function(profile_x0, DB, CI = 0.95, tilt = FALSE, LOO = NULL, tilt_ctrl = list(n = 500, p_range = c(0.001, 0.1))){
+#' @title Calculates z-scores based on genogeographer methodology
+#' @param profile_x0 The AIMs profile to analyse
+#' @param DB The AIMs database to use for the analysis
+#' @param CI The level for used for confidence intervals
+#' @param tilt Should exponential tilting be applied
+#' @param LOO Leave one out analysis - provide the name of the (meta)population
+#' @param tilt_ctrl Controls for exponential tilting
+#' @export
+ggg_score <- function(profile_x0, DB, min_n = 75, CI = 0.95, tilt = FALSE, LOO = NULL, tilt_ctrl = list(n = 500, p_range = c(0.001, 0.1))){
   groups <- non_list_cols(DB)
   groups_ <- sym(groups)
+  if("info" %in% names(attributes(DB))){
+    info <- attr(DB, "info") %>% mutate(n = map_dbl(n, ~eval(parse(text = (sub("\\&", "\\+", .x))))))
+    DB <- DB %>% semi_join(info %>% filter(n >= min_n), by = groups)
+  }
   ## Fix for Leave-One-Out analysis!
   if(!is.null(LOO) && any(LOO == DB[[groups]])){
     DB_loo <- DB %>% filter(LOO == !!groups_) %>% loo_update(profile_x0)

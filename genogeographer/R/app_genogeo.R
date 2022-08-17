@@ -15,6 +15,8 @@
 # library(leaflet.providers)
 # library(waiter)
 
+ggg_package <- "genogeographerDEVEL"
+
 #' Shiny application for GenoGeoGrapher
 #' @param db_list A named list of databases of reference populations.
 #' Each component is expected to be returned from \code{make_x1}.

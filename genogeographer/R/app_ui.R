@@ -1,31 +1,35 @@
-ggg_references <- list(
-  list(author = "T Tvedebrink, PS Eriksen, HS Mogensen, N Morling",
-       title = "GenoGeographer - A tool for genogeographic inference.",
-       journal = "Forensic Science International: Genetics Supplement Series 6, e463-e465.",
-       year = 2017),
-  list(author = "T Tvedebrink, PS Eriksen, HS Mogensen, N Morling",
-       title = "Weight of the evidence of genetic investigations of ancestry informative markers.",
-       journal = "Theoretical Population Biology 120, 1-10.",
-       year = 2018),
-  list(author = "T Tvedebrink, PS Eriksen",
-       title = "Inference of admixed ancestry with Ancestry Informative Markers.",
-       journal = "Forensic Science International: Genetics 42, 147-153.",
-       year = 2019),
-    list(author = "HS Mogensen, T Tvedebrink, C Borsting, V Pereira, N Morling",
-       title = "Ancestry prediction efficiency of the software GenoGeographer using a z-score method and the ancestry informative markers in the Precision ID Ancestry Panel.",
-       journal = "Forensic Science International: Genetics 44, 102154.",
-       year = 2020)
-) #  %>% bind_rows()
 
-ggg_ref <- function(x){
-  tags$li(paste0(x$author, " (", x$year,")."), #tags$br(),
-          tags$i(x$title), #tags$br(),
-          x$journal)
-}
-
+#' @title UI part for Shiny app
+#' @description The shiny front-end
+#' @export
 ui_api <- function(){
+  ggg_references <- list(
+    list(author = "T Tvedebrink, PS Eriksen, HS Mogensen, N Morling",
+         title = "GenoGeographer - A tool for genogeographic inference.",
+         journal = "Forensic Science International: Genetics Supplement Series 6, e463-e465.",
+         year = 2017),
+    list(author = "T Tvedebrink, PS Eriksen, HS Mogensen, N Morling",
+         title = "Weight of the evidence of genetic investigations of ancestry informative markers.",
+         journal = "Theoretical Population Biology 120, 1-10.",
+         year = 2018),
+    list(author = "T Tvedebrink, PS Eriksen",
+         title = "Inference of admixed ancestry with Ancestry Informative Markers.",
+         journal = "Forensic Science International: Genetics 42, 147-153.",
+         year = 2019),
+    list(author = "HS Mogensen, T Tvedebrink, C Borsting, V Pereira, N Morling",
+         title = "Ancestry prediction efficiency of the software GenoGeographer using a z-score method and the ancestry informative markers in the Precision ID Ancestry Panel.",
+         journal = "Forensic Science International: Genetics 44, 102154.",
+         year = 2020)
+  ) #  %>% bind_rows()
+
+  ggg_ref <- function(x){
+    tags$li(paste0(x$author, " (", x$year,")."), #tags$br(),
+            tags$i(x$title), #tags$br(),
+            x$journal)
+  }
+
   bootstrapPage(
-    tags$head(includeHTML("inst/gtag.html")),
+    tags$head(includeHTML("gtag.html")),
     useWaitress(),
     tags$style(appCSS),
     shinyjs::useShinyjs(),  # Set up shinyjs
@@ -61,8 +65,8 @@ ui_api <- function(){
                                          actionButton(inputId = "reset", label = "Reset", icon = icon("trash")),
                                          tags$hr(),
                                          uiOutput("report_panel"),
-                                         div(helpText(paste0("Version: genogeographer (", packageVersion("genogeographer"),")"))),
-                                         div(helpText(paste0("Developer: ", packageDescription("genogeographer", fields = "Maintainer"))))
+                                         div(helpText(paste0("Version: ", ggg_package, " (", packageVersion(ggg_package),")"))),
+                                         div(helpText(paste0("Developer: ", packageDescription(ggg_package, fields = "Maintainer"))))
                             ),
                           mainPanel = mainPanel(width = 9, uiOutput("analysis"))
                         )
@@ -70,6 +74,8 @@ ui_api <- function(){
 
                ## DATA TAB
                tabPanel("Data",
+                        img(src = "meta_structure.png"),
+                        img(src = "meta_pca.png"),
                ),
 
                ## CONSTRUCT OWN DATA
@@ -108,7 +114,7 @@ ui_api <- function(){
                             Care is taken in the implemenation, but the app comes with absolutely no warranty."),
                           p("The app is implemented by Torben Tvedebrink <",
                             tags$a("genogeographer@tvedebrink.dk", href = "mailto:genogeographer@tvedebrink.dk", .noWS = "outside"), ">."),
-                          p("The app is based on ", tags$b(paste("genogeographer version", packageVersion("genogeographer"))),
+                          p("The app is based on ", tags$b(paste("genogeographer version", packageVersion(ggg_package))),
                             "and associated reference databases."),
                           h4("References"),
                           tags$ul(ggg_references %>% lapply(ggg_ref))

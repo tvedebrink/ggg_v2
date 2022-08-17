@@ -1,5 +1,3 @@
-options(shiny.maxRequestSize=50*1024^2) ## 50 Mb
-
 dt_simple <- function(tab, ...){
   tab %>%
     DT::datatable(...,
@@ -23,6 +21,12 @@ dt_table <- function(x, ...){
     )
 }
 
+#' @title Server part for Shiny app
+#' @description server function to be used in the `app_genogeo` shiny app
+#' @param input The list of inputs (leave empty)
+#' @param output The list of outputs (leave empty)
+#' @param session The shiny session - to refer to session elements (leave empty)
+#' @export
 server_api <- function(input, output, session){
   ## build fixes : start ##
   Target.ID <- NULL; Genotype <- NULL; locus <- NULL; genotype <- NULL
@@ -106,7 +110,7 @@ server_api <- function(input, output, session){
     },
     contentType = "text/csv",
     content = function(file) {
-      aims_example <- read_csv(system.file("deployable_app", "aims_example.csv", package = "genogeographer"), col_types = "cc")
+      aims_example <- read_csv(system.file("deployable_app", "aims_example.csv", package = ggg_package), col_types = "cc")
       write_csv(aims_example, file = file)
     }
   )
@@ -299,7 +303,7 @@ server_api <- function(input, output, session){
     ebp <- error_bar_plotly(result_df = res, which = isolate(input$result_table_rows_selected))
     height <- session$clientData$output_barplot_height
     width <- session$clientData$output_barplot_width
-    ebp %>% ggplotly(tooltip = c("text"), height = width*0.8, width = width) %>%
+    ebp %>% ggplotly(tooltip = c("text")) %>% # , height = width*0.8, width = width) %>%
       layout(showlegend = FALSE) %>%
       config(displayModeBar = FALSE)
     })
@@ -307,7 +311,7 @@ server_api <- function(input, output, session){
   ## TABLES
   # https://stackoverflow.com/questions/53768488/how-to-display-html-in-dt-header
 
-  output$result_table <- renderDT({
+  z_table <- reactive({
     res <- reactive_result()
     if(is.null(res)) return(NULL)
     db_info <- attr(res, "info")
@@ -322,6 +326,10 @@ server_api <- function(input, output, session){
         rename(!!grouping_ := !!groups_)
     }
     result_table(res)
+  })
+
+  output$result_table <- renderDT({
+    z_table()
   })
 
   ## LR calculations and controls
@@ -358,6 +366,7 @@ server_api <- function(input, output, session){
   reactive_LR_table <- reactive({
     accepted_control <- if(is.null(input$LR_accept)) FALSE else (input$LR_accept == "allow")
     res <- reactive_result()
+    if(nrow(res) <= 1) return(NULL)
     list(
       res = res,
       LR_Tab = LR_table(z_df = res, who = input$LR_selected, CI = input$CI/100, only_accepted = !accepted_control)$LR
@@ -366,6 +375,7 @@ server_api <- function(input, output, session){
 
   output$lr_list <- renderDT({
     LR_Tab <- reactive_LR_table()
+    req(LR_Tab)
     LR_list(result = LR_Tab$res, LR_tab = LR_Tab$LR_Tab)
   })
 
@@ -383,6 +393,7 @@ server_api <- function(input, output, session){
 
   output$LRplot <- renderPlotly({
     LR_Tab <- reactive_LR_table()
+    req(LR_Tab)
     if(is.null(LR_Tab$LR_Tab) | nrow(LR_Tab$LR_Tab) == 0) return(NULL)
     LR_plot_ly(result = LR_Tab$res, LR_list = LR_Tab$LR_Tab)
     })
@@ -634,6 +645,7 @@ server_api <- function(input, output, session){
         h3("Populations and metapopulations selected from the data"),
         dt_table(info_rows),
         h3("Compute"),
+        textInput(inputId = "db_name", label = "Specify database name (will appear in app)", value = sub("\\..*$", "", input$dataset_file$name)),
         div(tags$b("Click on the button below to execute the calculations... "), tags$text("(May be slow)")),
         div(
           actionButton(inputId = "comp_x1", label = "Compute databases", icon = icon("database")),
@@ -670,15 +682,17 @@ server_api <- function(input, output, session){
     meta_DB_1admix <- admix_dbs(meta_DB, shiny = c(shiny_progress, list(start = n_comp[4])))
     }, selector = "#download_x1", max = 100, theme = "overlay-percent")
     db_list <- list(list(pop = list(db = pop_DB, admix = pop_DB_1admix),
-                    meta = list(db = meta_DB, admix = meta_DB_1admix))) %>%
-      set_names(sub("\\..*$", "", isolate(input$dataset_file$name)))
+                    meta = list(db = meta_DB, admix = meta_DB_1admix)))
+    if(!is.null(input$db_name) || input$db_name != "") names(db_list) <- input$db_name
+    else names(db_list) <- sub("\\..*$", "", isolate(input$dataset_file$name))
     reactive_x1$db <- db_list
     shinyjs::enable("download_x1")
   })
 
   output$download_x1 <- downloadHandler(
     filename = function() {
-      paste0(sub("\\..*$", "", input$dataset_file$name), ".rds")
+      fil <- if(!is.null(input$db_name) || input$db_name != "") input$db_name else sub("\\..*$", "", input$dataset_file$name)
+      gsub("\\s", "_", paste0(fil, ".rds"))
     },
     content = function(file) {
       saveRDS(reactive_x1$db, file)
@@ -721,42 +735,40 @@ server_api <- function(input, output, session){
     res <- reactive_result()
     if(!reporting_panel) return(verticalLayout())
     if(is.null(res)) return(verticalLayout())
-    if(!requireNamespace("tidyverse")) return(verticalLayout(helpText("Needs `tidyverse` for generating report!")))
     verticalLayout(
       h4("Report"),
       textInput(inputId = "name", label = "Name of analyst", width = "100%",
                 placeholder = "Name as to appear in report", value = input$name),
-      radioButtons(inputId = 'format', label = 'Report format', choices = "HTML", #c('PDF', 'HTML', 'Word'),
-                   inline = TRUE, selected = input$format),
-      withBusyIndicatorUI(downloadButton(outputId = "report_download", label = paste0("Download (",input$format,")"), class = "btn-primary")), ## had withBusyIndicatorUI() around
+      # radioButtons(inputId = 'format', label = 'Report format', choices = c('PDF', 'HTML', 'Word'), inline = TRUE, selected = input$format),
+      # withBusyIndicatorUI(downloadButton(outputId = "report_download", label = paste0("Download (",input$format,")"), class = "btn-primary")),
+      withBusyIndicatorUI(downloadButton(outputId = "report_download", label = "Download HTML report", class = "btn-primary")),
       hr()
     )
   })
   #
 
   output$report_download = downloadHandler(
-##  filename = "test.html",
     filename = function(){
-      paste(sub("\\.[[:alnum:]]*.$","",input$profile_file$name), sep =".",
-            switch(
-              input$format, PDF = 'pdf', HTML = 'html', Word = 'docx'
-            ))
+      paste(sub("\\.[[:alnum:]]*.$","",input$profile_file$name),
+            "html", #switch(input$format, PDF = 'pdf', HTML = 'html', Word = 'docx'), #
+            sep ="."
+            )
     },
     content = function(file) {
-      src <- list(rmd_file = normalizePath(system.file("deployable_app", "aims_report.Rmd", package = "genogeographer")))
+      src <- list(rmd_file = normalizePath(system.file("deployable_app", "aims_report.Rmd", package = ggg_package)))
       owd <- setwd(tempdir())
       cat(file = stderr(), owd, "\n")
       on.exit(setwd(owd))
       file.copy(src$rmd_file, 'aims_report.Rmd', overwrite = TRUE)
       out <- rmarkdown::render(input = 'aims_report.Rmd', clean = TRUE,
-                               output_format = switch(
-        input$format,
-        PDF = rmarkdown::pdf_document(), HTML = rmarkdown::html_document(), Word = rmarkdown::word_document()
-        ),
+                               output_format = rmarkdown::html_document(), #switch(input$format,PDF = rmarkdown::pdf_document(), HTML = rmarkdown::html_document(), Word = rmarkdown::word_document()), #
         params = list(
           set_file = input$profile_file$name,
           set_author = input$name,
-          set_output = input$format
+          set_output = input$format,
+          set_locus = input$col_locus,
+          set_genotype = input$col_genotype,
+          set_db = input$snp_set
           )
         )
       file.rename(out, file)

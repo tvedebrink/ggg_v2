@@ -58,7 +58,7 @@ LR_list <- function(result = NULL, LR_tab = NULL, lr_pops = NULL, CI, accepted, 
   null_in_CI <- NULL; `Null in CI` <- NULL;   z_score <- NULL;  accept <- NULL; . <- NULL
   ## build fixes : end ##
   if(is.null(LR_tab)){
-    if(is.null(result)) return(NULL)
+    if(is.null(result) || nrow(result)<= 1) return(NULL)
     if(is.null(lr_pops)) return(NULL)
     lr_list <- LR_table(z_df = result, who = lr_pops, CI = CI, only_accepted = !accepted)
     if(nrow(lr_list)==0) return(NULL)

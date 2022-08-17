@@ -1,2 +1,0 @@
-tar -zxvf genogeographer_*.tar.gz genogeographer/inst/deployable_app/app.R --strip 3
-
