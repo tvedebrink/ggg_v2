@@ -15,13 +15,13 @@ withBusyIndicatorUI <- function(button) {
     span(
       class = "btn-loading-container",
       hidden(
-        icon("sync", class = "btn-loading-indicator"),
-        icon("check", class = "btn-done-indicator")
+        icon("rotate", class = "btn-loading-indicator", verify_fa = FALSE),
+        icon("check", class = "btn-done-indicator", verify_fa = FALSE)
       )
     ),
     hidden(
       div(class = "btn-err",
-          div(icon("exclamation-circle"),
+          div(icon("circle-exclamation", verify_fa = FALSE),
               tags$b("Error: "),
               span(class = "btn-err-msg")
           )
@@ -76,5 +76,10 @@ appCSS <- "
 .btn-err {
   margin-top: 10px;
   color: red;
+}
+.responsive {
+  width: 100%;
+  max-width: 800px;
+  height: auto;
 }
 "

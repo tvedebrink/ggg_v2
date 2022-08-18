@@ -42,7 +42,7 @@ dt_table <- function(x, ...){
 # File report: `r params$set_file`
 
 ```{r setup, include=FALSE}
-ggg_package <- "genogeographerDEVEL"
+ggg_package <- "genogeographer"
 
 knitr::opts_chunk$set(echo = FALSE, comment = NA, message = FALSE, warning = FALSE, fig.width = 8, fig.asp = 0.6, error = TRUE, fig.align = 'center')
 library(knitr)

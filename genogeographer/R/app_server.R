@@ -44,10 +44,26 @@ server_api <- function(input, output, session){
     withBusyIndicatorServer("analyse", reactive_result())
   })
 
+  output$pop_info <- renderUI({
+    fluidPage(
+    fluidRow(h3("Populations")),
+    fluidRow(attr(reactive_db_list$db$`Precision ID`$pop$db, "info") %>% select(population, n) %>% dt_table()),
+    fluidRow(h3("Metapopulations")),
+    fluidRow(attr(reactive_db_list$db$`Precision ID`$meta$db, "info") %>% select(metapopulation, n) %>% dt_table())
+    )
+  })
+
+  output$allele_info <- renderDT({
+  ggg_allele_list %>%
+    mutate(locus = paste0("<a href='https://www.ncbi.nlm.nih.gov/snp/",locus,"' target='_blank'>", locus, "</a>")) %>%
+    rename('AIMs SNP' = locus, 'Reference allele' = x1, 'Alternative allele' = x2) %>%
+    mutate(across(Kidd:Seldin, ~ifelse(.x, "Yes", "No"))) %>%
+    dt_table(escape = FALSE)
+  })
+
   ## USER INTERFACE
   output$analysis <- renderUI({
     res <- reactive_result()
-    # prof <- reactive_profile()
     dat <- reactive_read_profile()
     if(is.null(res)){
       if(is.null(dat) || nrow(dat) == 0){
@@ -83,7 +99,7 @@ server_api <- function(input, output, session){
         tags$head(tags$style(paste0(".modal-lg{ width: ", 2*session$clientData$output_barplot_width,"px}"))),
         fluidRow(HTML(paste0("<p><b>Analysis of file:</b> ",input$profile_file$name,":")),
                  actionLink("show_profile", label = "Show profile"),
-                 icon("new-window", lib = "glyphicon"),
+                 icon("new-window", lib = "glyphicon", verify_fa = FALSE),
                  HTML("</p>")
                  ),
         fluidRow(tags$h2("Graphics")),
@@ -94,6 +110,7 @@ server_api <- function(input, output, session){
         fluidRow(tags$h2("Tables")),
         fluidRow(DTOutput("result_table")),
         fluidRow(tags$h2("Likelihood ratios")),
+        fluidRow(textOutput("LR_one_pop")),
         fluidRow(
           column(width = 6, DTOutput("lr_list")),
           column(width = 6, uiOutput("LRplot_panel") )
@@ -169,7 +186,10 @@ server_api <- function(input, output, session){
     req(input$db_add)
     user_db <- readRDS(file = input$db_add$datapath)
     db_names <- user_db %>% purrr::map(names) %>% unlist() %>% unname() %>% unique()
-    if(length(setdiff(db_names, c("pop", "meta"))) == 0) reactive_db_list$db <- c(reactive_db_list$db, user_db)
+    if(length(setdiff(db_names, c("pop", "meta"))) == 0){
+      reactive_db_list$db <- c(reactive_db_list$db, user_db)
+      updateSelectInput(session, inputId = "snp_set", selected = names(user_db))
+    }
     if(!is.null(reactive_db_list$db)) enable("analyse")
     })
 
@@ -188,11 +208,11 @@ server_api <- function(input, output, session){
 
   reactive_read_profile <- reactive({
     if(is.null(input$profile_file)) { # User has not uploaded a file yet
-      return(tibble())
+      return(NULL)
     }
     ## Import profile
     ext <- rio::get_ext(input$profile_file$datapath)
-    if(grepl("xls", ext)) data <- rio::import(input$profile_file$datapath) %>% as_tibble()
+    if(grepl("xls", ext)) data <- rio::import(input$profile_file$datapath, header = TRUE) %>% as_tibble()
     else data <- rio::import(input$profile_file$datapath, header = TRUE) %>% as_tibble()
     ## Remove NA columns
     data <- data %>% select(which(map_lgl(.x = ., .f = ~ !all(is.na(.x)))))
@@ -205,14 +225,19 @@ server_api <- function(input, output, session){
     updateSelectInput(session, inputId = "col_locus", selected = reactive_columns$locus_guess[1])
     updateSelectInput(session, inputId = "col_genotype", selected = reactive_columns$genotype_guess[1])
     ## return read data
+    # print("reactive_read_profile")
+    # browser()
     data
   })
 
   reactive_profile <- reactive({
     profile <- reactive_read_profile()
-    if(is.null(profile) | nrow(profile) == 0) return(NULL) ## No profile
+    # req(profile)
+    if(is.null(profile) || nrow(profile) == 0) return(NULL) ## No profile
     nprofile <- names(profile)
     col_return <- FALSE
+    # req(input$col_locus)
+    # req(input$col_genotype)
     if(!(input$col_locus %in% nprofile)){
       updateSelectInput(session, inputId = "col_locus", selected = NULL)
       col_return <- TRUE
@@ -222,9 +247,9 @@ server_api <- function(input, output, session){
       col_return <- TRUE
     }
     if(col_return || (input$col_locus == input$col_genotype)) return(NULL)
+    # browser()
     ##
     ggg_db <- attr(reactive_db_list$db[[input$snp_set]]$meta$db, "allele_list")
-    # browser()
     ##
     genotype_x0(profile = profile, locus = input$col_locus, genotype = input$col_genotype, ggg = ggg_db)
   })
@@ -237,9 +262,11 @@ server_api <- function(input, output, session){
     ## ADMIXTURE
     admix_control <- if(is.null(input$admix)) FALSE else (input$admix == "admix")
     ## COMPUTE
-    res <- ggg_score(profile_x0 = profile, DB = reactive_db_list$db[[input$snp_set]][[input$meta]]$db, CI = input$CI/100, tilt = tilt_control)
+    res <- ggg_score(profile_x0 = profile, DB = reactive_db_list$db[[input$snp_set]][[input$meta]]$db,
+                     min_n = input$min_n, CI = input$CI/100, tilt = tilt_control)
     if(admix_control){
-      res_admix <- ggg_score(profile_x0 = profile, DB = reactive_db_list$db[[input$snp_set]][[input$meta]]$admix, CI = input$CI/100, tilt = FALSE)
+      res_admix <- ggg_score(profile_x0 = profile, DB = reactive_db_list$db[[input$snp_set]][[input$meta]]$admix,
+                             min_n = input$min_n, CI = input$CI/100, tilt = FALSE)
       info <- bind_rows(attr(res, "info"), attr(res_admix, "info"))
       res <- bind_rows(res, res_admix) %>% arrange(desc(logP))
       attr(res, "info") <- info
@@ -361,6 +388,15 @@ server_api <- function(input, output, session){
                      options = list(plugins = list("remove_button", "drag_drop")),
                      width = "100%")
       )
+  })
+
+  output$LR_one_pop <- renderText({
+    res <- reactive_result()
+    input_meta <- isolate(input$meta)
+    mm <- if(is.null(input_meta)) "meta" else input_meta
+    MM <- if(mm == "meta") "metapopulation" else "population"
+    if(nrow(res) <= 1) paste("Likelihood ratios are not computed, since there is just a single", MM, "in the results")
+    else return(NULL)
   })
 
   reactive_LR_table <- reactive({
@@ -568,8 +604,8 @@ server_api <- function(input, output, session){
       helpText(data_rs),
       uiOutput("dataset_check"),
       div(
-        (actionButton(inputId = "process_dataset", label = "Process dataset", icon = icon("step-forward"))),
-        (actionButton(inputId = "unlock_dataset", label = "Update selections", icon = icon("step-backward")))
+        (actionButton(inputId = "process_dataset", label = "Process dataset", icon = icon("forward-step", verify_fa = FALSE))),
+        (actionButton(inputId = "unlock_dataset", label = "Update selections", icon = icon("backward-step", verify_fa = FALSE)))
       )
     )
   })
@@ -622,8 +658,8 @@ server_api <- function(input, output, session){
       ),
       uiOutput("info_check"),
       div(
-        actionButton(inputId = "process_info", label = "Process information", icon = icon("step-forward")),
-        actionButton(inputId = "unlock_info", label = "Update selections", icon = icon("step-backward"))
+        actionButton(inputId = "process_info", label = "Process information", icon = icon("step-forward", verify_fa = FALSE)),
+        actionButton(inputId = "unlock_info", label = "Update selections", icon = icon("step-backward", verify_fa = FALSE))
       )    )
   })
 
@@ -648,7 +684,7 @@ server_api <- function(input, output, session){
         textInput(inputId = "db_name", label = "Specify database name (will appear in app)", value = sub("\\..*$", "", input$dataset_file$name)),
         div(tags$b("Click on the button below to execute the calculations... "), tags$text("(May be slow)")),
         div(
-          actionButton(inputId = "comp_x1", label = "Compute databases", icon = icon("database")),
+          actionButton(inputId = "comp_x1", label = "Compute databases", icon = icon("database", verify_fa = FALSE)),
           shinyjs::disabled(downloadButton(outputId = "download_x1", label = "Create and download databases"))
         ),
         tags$p("")

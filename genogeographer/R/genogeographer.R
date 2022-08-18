@@ -1,14 +1,14 @@
 #'
-#' genogeographerDEVEL: Methods for analysing forensic Ancestry Informative Markers
+#' genogeographer: Methods for analysing forensic Ancestry Informative Markers
 #'
-#' The genogeographerDEVEL package provides:
+#' The genogeographer package provides:
 #' genogeo() app_genegeo()
 #'
 #' @section genogeo functions:
 #' See ?genogeo
 #'
 #' @docType package
-#' @name genogeographerDEVEL
+#' @name genogeographer
 #' @importFrom dplyr starts_with distinct filter select mutate rename row_number
 #' @importFrom dplyr top_n desc pull funs rowwise ungroup arrange case_when bind_rows slice_sample bind_cols
 #' @importFrom dplyr vars group_by summarise n everything between group_vars slice count
@@ -23,7 +23,7 @@
 #' @importFrom rlang sym quo ":="
 #' @importFrom knitr kable
 #' @importFrom glue glue
-#' @importFrom htmltools h5 includeHTML p
+#' @importFrom htmltools h5 includeHTML p img
 #' @importFrom waiter withProgressWaitress useWaitress
 #' @importFrom shinythemes shinytheme
 #' @importFrom rio import get_ext
@@ -37,7 +37,8 @@
 #' @importFrom shiny downloadLink reactiveValues eventReactive checkboxGroupInput conditionalPanel selectizeInput renderPlot modalDialog
 #' @importFrom shiny fluidRow plotOutput brushOpts clickOpts hoverOpts nearPoints updateSelectizeInput brushedPoints textInput showModal
 #' @importFrom shiny radioButtons downloadButton hr withProgress h4 titlePanel fileInput sliderInput actionButton icon helpText actionLink
-#' @importFrom shiny getCurrentOutputInfo getDefaultReactiveDomain req bootstrapPage navbarPage tabPanel isolate
+#' @importFrom shiny getCurrentOutputInfo getDefaultReactiveDomain req bootstrapPage navbarPage tabPanel isolate tagList navbarMenu
+#' @importFrom shiny renderText textOutput
 #' @importFrom shinyjs runjs useShinyjs hidden disable enable show hide delay html
 #' @importFrom shinycssloaders withSpinner
 #' @importFrom shinyWidgets sliderTextInput
@@ -58,6 +59,6 @@ utils::globalVariables(c(".", "locus", "x0", "genotype", "pop_label", "neg", "po
                          "num", "Numerator", "numerator", "num_logP", "num_varlogP", "num_p_value", "num_accept",
                          "den", "denominator", "den_p_value", "den_logP", "den_varlogP", "den_accept", "tool_tip",
                          "meta", "accept", "p1", "p2", "pop", "latlon", "colour", "allele",
-                         "P1", "P2", "n1", "n2", "x1", "x2", "f1", "f2", "pair", "admix",
+                         "P1", "P2", "n1", "n2", "x1", "x2", "f1", "f2", "pair", "admix", "Kidd", "Seldin",
                          "Significantly different", "lab", "population", "metapopulation", "db_x1"))
 NULL

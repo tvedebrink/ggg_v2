@@ -8,15 +8,18 @@ non_list_cols <- function(df){
 #' @param CI The level for used for confidence intervals
 #' @param tilt Should exponential tilting be applied
 #' @param LOO Leave one out analysis - provide the name of the (meta)population
+#' @param min_n Minimum number of required samples
 #' @param tilt_ctrl Controls for exponential tilting
 #' @export
 ggg_score <- function(profile_x0, DB, min_n = 75, CI = 0.95, tilt = FALSE, LOO = NULL, tilt_ctrl = list(n = 500, p_range = c(0.001, 0.1))){
   groups <- non_list_cols(DB)
   groups_ <- sym(groups)
   if("info" %in% names(attributes(DB))){
-    info <- attr(DB, "info") %>% mutate(n = map_dbl(n, ~eval(parse(text = (sub("\\&", "\\+", .x))))))
-    DB <- DB %>% semi_join(info %>% filter(n >= min_n), by = groups)
+    DB_info <- attr(DB, "info") %>% mutate(n = map_dbl(n, ~eval(parse(text = (sub("\\&", "\\+", .x))))))
+    DB_info <- DB_info %>% filter(n >= min_n)
+    DB <- DB %>% semi_join(DB_info, by = groups)
   }
+  if(nrow(DB) == 0) return(NULL)
   ## Fix for Leave-One-Out analysis!
   if(!is.null(LOO) && any(LOO == DB[[groups]])){
     DB_loo <- DB %>% filter(LOO == !!groups_) %>% loo_update(profile_x0)
@@ -59,7 +62,7 @@ ggg_score <- function(profile_x0, DB, min_n = 75, CI = 0.95, tilt = FALSE, LOO =
     }
   }
   result <- result %>% mutate(accept = p_value > 1-CI)
-  if("info" %in% names(attributes(DB))) attr(result, "info") <- attr(DB, "info")
+  if("info" %in% names(attributes(DB))) attr(result, "info") <- DB_info
   result
 }
 
