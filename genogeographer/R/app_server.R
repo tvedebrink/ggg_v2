@@ -47,9 +47,9 @@ server_api <- function(input, output, session){
   output$pop_info <- renderUI({
     fluidPage(
     fluidRow(h3("Populations")),
-    fluidRow(attr(reactive_db_list$db$`Precision ID`$pop$db, "info") %>% select(population, n) %>% dt_table()),
+    fluidRow(attr(reactive_db_list$db$`GenoGeographer Precision ID`$pop$db, "info") %>% select(population, n) %>% dt_table()),
     fluidRow(h3("Metapopulations")),
-    fluidRow(attr(reactive_db_list$db$`Precision ID`$meta$db, "info") %>% select(metapopulation, n) %>% dt_table())
+    fluidRow(attr(reactive_db_list$db$`GenoGeographer Precision ID`$meta$db, "info") %>% select(metapopulation, n) %>% dt_table())
     )
   })
 
@@ -129,6 +129,28 @@ server_api <- function(input, output, session){
     content = function(file) {
       aims_example <- read_csv(system.file("deployable_app", "aims_example.csv", package = ggg_package), col_types = "cc")
       write_csv(aims_example, file = file)
+    }
+  )
+
+  output$download_reference_db <- downloadHandler(
+    filename <- function(){
+      paste("EUROFORGEN_global_db", "csv", sep = ".")
+    },
+    contentType = "text/csv",
+    content = function(file) {
+      db_example <- read_csv(system.file("deployable_app", "EUROFORGEN_global_db.csv", package = ggg_package), show_col_types = FALSE)
+      write_csv(db_example, file = file)
+    }
+  )
+
+  output$download_reference_info <- downloadHandler(
+    filename <- function(){
+      paste("EUROFORGEN_global_info", "csv", sep = ".")
+    },
+    contentType = "text/csv",
+    content = function(file) {
+      info_example <- read_csv(system.file("deployable_app", "EUROFORGEN_global_info.csv", package = ggg_package), show_col_types = FALSE)
+      write_csv(info_example, file = file)
     }
   )
 
@@ -685,7 +707,7 @@ server_api <- function(input, output, session){
         div(tags$b("Click on the button below to execute the calculations... "), tags$text("(May be slow)")),
         div(
           actionButton(inputId = "comp_x1", label = "Compute databases", icon = icon("database", verify_fa = FALSE)),
-          shinyjs::disabled(downloadButton(outputId = "download_x1", label = "Create and download databases"))
+          shinyjs::disabled(downloadButton(outputId = "download_x1", label = "Download created databases", class = "btn-primary"))
         ),
         tags$p("")
       )
@@ -709,6 +731,7 @@ server_api <- function(input, output, session){
     shiny_progress <- list(n = n_comp[length(n_comp)], session = session)
     # print(shiny_progress$step)
     ##
+    ## browser()
     withProgressWaitress({
     pop_DB <- make_x1(df = data_, latlon = info_, groups = "pop", exclude = c("sample", "meta"),
                       allele_list = ggg_allele_list, shiny = c(shiny_progress, list(start = n_comp[1])))
@@ -747,6 +770,10 @@ server_api <- function(input, output, session){
     ## Make column suggestions
     fluidPage(
       h3("Instructions"),
+      HTML("Download the database and information files to see the required columns and data structure here:"),
+      downloadLink("download_reference_db", "Reference database example"),
+      HTML(" and "),
+      downloadLink("download_reference_info", "Information example"),
       ## Which columns are used for joins
       h3("Uploaded dataset file"),
       tags$p(paste0('The first ', n_data ,' out of ', data_n , ' rows  the dataset file are shown below.

@@ -51,7 +51,7 @@ ui_api <- function(){
                                          radioButtons(inputId = "meta", label = "Grouping type:", choices = c("Meta-populations" = "meta", "Populations" = "pop")),
                                          sliderInput(inputId = "min_n", label = "Minimum sample size:", min = 5, max = 200, step = 5, value = 75),
                                          checkboxGroupInput(inputId = "admix", label = "Analyse 1st order admixture:",
-                                                            choiceNames = list("Admixture (may take some time)"), choiceValues = list("admix")),
+                                                            choiceNames = list("Admixture"), choiceValues = list("admix")),
                                          shinyWidgets::sliderTextInput(inputId = "CI", label = "Confidence level:", choices = c(95, 97.5, 99, 99.9, 99.99), selected = 95, post = "%"),
                                          uiOutput("dbs"),
                                          checkboxGroupInput(inputId = "tilt", label = "Adjust p-values by exponential tilting:",
