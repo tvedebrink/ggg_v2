@@ -30,7 +30,6 @@ result_table <- function(result, flat = FALSE, lr_listed = ""){
       `p-value` = p_value
     )
   if(flat) return(kable(result))
-  browser()
   result %>% set_names(sub("10", "<sub>10</sub>", names(.))) %>%
     datatable(rownames=FALSE, filter = "bottom", escape = FALSE,
                   selection = list(mode = "multiple", target = "row"), #'none',

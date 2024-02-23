@@ -45,11 +45,16 @@ server_api <- function(input, output, session){
   })
 
   output$pop_info <- renderUI({
+    print(names(reactive_db_list$db))
+    pop_info <- attr(reactive_db_list$db[[1]]$pop$db, "info")
+    print(dim(pop_info))
+    meta_info <- attr(reactive_db_list$db[[1]]$meta$db, "info")
+    print(dim(meta_info))
     fluidPage(
     fluidRow(h3("Populations")),
-    fluidRow(attr(reactive_db_list$db$`GenoGeographer Precision ID`$pop$db, "info") %>% select(population, n) %>% dt_table()),
+    fluidRow(pop_info %>% select(population, n) %>% dt_table()),
     fluidRow(h3("Metapopulations")),
-    fluidRow(attr(reactive_db_list$db$`GenoGeographer Precision ID`$meta$db, "info") %>% select(metapopulation, n) %>% dt_table())
+    fluidRow(meta_info %>% select(metapopulation, n) %>% dt_table())
     )
   })
 

@@ -10,9 +10,9 @@ library(shiny)
 source("global.R", encoding = "UTF-8")
 
 shinyApp(
-  ui = genogeographerDEVEL::ui_api(),
+  ui = genogeographer::ui_api(),
   server = function(input, output, session){
-    genogeographerDEVEL::server_api(input = input, output = output, session = session)
+    genogeographer::server_api(input = input, output = output, session = session)
     }
 )
 

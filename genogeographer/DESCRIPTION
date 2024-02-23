@@ -1,7 +1,7 @@
 Package: genogeographer
 Type: Package
 Title: Methods for Analysing Forensic Ancestry Informative Markers
-Version: 0.3
+Version: 0.3.1
 Author: Torben Tvedebrink
 Maintainer: Torben Tvedebrink <genogeographer@tvedebrink.dk>
 Depends: R (>= 3.5.0)
