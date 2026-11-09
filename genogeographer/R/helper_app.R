@@ -1,5 +1,30 @@
 ## app_helpers
 
+## Simple DT wrappers shared across the app modules
+
+dt_simple <- function(tab, ...){
+  tab %>%
+    DT::datatable(...,
+                  rownames = FALSE,
+                  options = list(
+                    scrollX = TRUE,
+                    dom = 't'
+                  ), class = 'white-space: nowrap')
+}
+
+dt_table <- function(x, ...){
+  x %>%
+    DT::datatable(data = ., ...,
+                  rownames=FALSE, filter = "bottom", selection = 'none',
+                  extensions = 'Buttons',
+                  options = list(
+                    dom = 'Blfrtip',
+                    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+                    lengthMenu = list(c(10, 25, 50, 100, -1), c("10", "25", "50", "100", "All"))
+                  )
+    )
+}
+
 ## Formatting of result tables
 
 result_table <- function(result, flat = FALSE, lr_listed = ""){
