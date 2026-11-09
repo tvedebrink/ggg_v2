@@ -9,228 +9,263 @@ export(exponent_tilt)
 export(ggg_score)
 export(server_api)
 export(ui_api)
-importFrom(DT,DTOutput)
-importFrom(DT,datatable)
-importFrom(DT,formatStyle)
-importFrom(DT,renderDT)
-importFrom(DT,styleEqual)
-importFrom(dplyr,across)
-importFrom(dplyr,anti_join)
-importFrom(dplyr,arrange)
-importFrom(dplyr,between)
-importFrom(dplyr,bind_cols)
-importFrom(dplyr,bind_rows)
-importFrom(dplyr,c_across)
-importFrom(dplyr,case_when)
-importFrom(dplyr,count)
-importFrom(dplyr,desc)
-importFrom(dplyr,distinct)
-importFrom(dplyr,everything)
-importFrom(dplyr,filter)
-importFrom(dplyr,full_join)
-importFrom(dplyr,funs)
-importFrom(dplyr,group_by)
-importFrom(dplyr,group_vars)
-importFrom(dplyr,inner_join)
-importFrom(dplyr,left_join)
-importFrom(dplyr,mutate)
-importFrom(dplyr,n)
-importFrom(dplyr,pull)
-importFrom(dplyr,rename)
-importFrom(dplyr,right_join)
-importFrom(dplyr,row_number)
-importFrom(dplyr,rowwise)
-importFrom(dplyr,select)
-importFrom(dplyr,semi_join)
-importFrom(dplyr,slice)
-importFrom(dplyr,slice_max)
-importFrom(dplyr,slice_sample)
-importFrom(dplyr,starts_with)
-importFrom(dplyr,summarise)
-importFrom(dplyr,top_n)
-importFrom(dplyr,ungroup)
-importFrom(dplyr,vars)
-importFrom(forcats,fct_inorder)
-importFrom(forcats,fct_reorder)
-importFrom(forcats,fct_rev)
-importFrom(ggplot2,aes)
-importFrom(ggplot2,coord_cartesian)
-importFrom(ggplot2,element_blank)
-importFrom(ggplot2,element_rect)
-importFrom(ggplot2,facet_grid)
-importFrom(ggplot2,facet_wrap)
-importFrom(ggplot2,fortify)
-importFrom(ggplot2,geom_errorbarh)
-importFrom(ggplot2,geom_point)
-importFrom(ggplot2,geom_polygon)
-importFrom(ggplot2,geom_segment)
-importFrom(ggplot2,geom_vline)
-importFrom(ggplot2,ggplot)
-importFrom(ggplot2,guides)
-importFrom(ggplot2,label_both)
-importFrom(ggplot2,labs)
-importFrom(ggplot2,map_data)
-importFrom(ggplot2,scale_color_manual)
-importFrom(ggplot2,scale_colour_manual)
-importFrom(ggplot2,scale_fill_manual)
-importFrom(ggplot2,scale_shape_manual)
-importFrom(ggplot2,scale_x_reverse)
-importFrom(ggplot2,theme)
-importFrom(ggplot2,theme_bw)
-importFrom(ggplot2,xlim)
+importFrom(DT,
+  DTOutput,
+  datatable,
+  formatStyle,
+  renderDT,
+  styleEqual
+)
+importFrom(bslib,
+  bs_add_rules,
+  bs_theme,
+  bs_theme_update,
+  card,
+  card_header,
+  layout_columns,
+  layout_sidebar,
+  nav_menu,
+  nav_panel,
+  page_navbar,
+  sidebar
+)
+importFrom(dplyr,
+  across,
+  anti_join,
+  arrange,
+  between,
+  bind_cols,
+  bind_rows,
+  c_across,
+  case_when,
+  count,
+  desc,
+  distinct,
+  everything,
+  filter,
+  full_join,
+  funs,
+  group_by,
+  group_vars,
+  inner_join,
+  left_join,
+  mutate,
+  n,
+  pull,
+  rename,
+  right_join,
+  row_number,
+  rowwise,
+  select,
+  semi_join,
+  slice,
+  slice_max,
+  slice_sample,
+  starts_with,
+  summarise,
+  top_n,
+  ungroup,
+  vars
+)
+importFrom(forcats,
+  fct_inorder,
+  fct_reorder,
+  fct_rev
+)
+importFrom(ggplot2,
+  aes,
+  coord_cartesian,
+  element_blank,
+  element_rect,
+  facet_grid,
+  facet_wrap,
+  fortify,
+  geom_errorbarh,
+  geom_point,
+  geom_polygon,
+  geom_segment,
+  geom_vline,
+  ggplot,
+  guides,
+  label_both,
+  labs,
+  map_data,
+  scale_color_manual,
+  scale_colour_manual,
+  scale_fill_manual,
+  scale_shape_manual,
+  scale_x_reverse,
+  theme,
+  theme_bw,
+  xlim
+)
 importFrom(glue,glue)
-importFrom(grDevices,col2rgb)
-importFrom(grDevices,rgb)
-importFrom(htmltools,h5)
-importFrom(htmltools,img)
-importFrom(htmltools,includeHTML)
-importFrom(htmltools,p)
+importFrom(grDevices,
+  col2rgb,
+  rgb
+)
+importFrom(htmltools,
+  h5,
+  img,
+  includeHTML,
+  p
+)
 importFrom(knitr,kable)
-importFrom(leaflet,addCircles)
-importFrom(leaflet,addLegend)
-importFrom(leaflet,addPolygons)
-importFrom(leaflet,addProviderTiles)
-importFrom(leaflet,addTiles)
-importFrom(leaflet,colorNumeric)
-importFrom(leaflet,leaflet)
-importFrom(leaflet,leafletOutput)
-importFrom(leaflet,providers)
-importFrom(leaflet,renderLeaflet)
+importFrom(leaflet,
+  addCircles,
+  addLegend,
+  addPolygons,
+  addProviderTiles,
+  addTiles,
+  colorNumeric,
+  leaflet,
+  leafletOutput,
+  providerTileOptions,
+  providers,
+  renderLeaflet
+)
 importFrom(magrittr,"%>%")
 importFrom(maps,map)
 importFrom(parallel,mclapply)
 importFrom(patchwork,wrap_plots)
-importFrom(plotly,add_markers)
-importFrom(plotly,config)
-importFrom(plotly,ggplotly)
-importFrom(plotly,layout)
-importFrom(plotly,plot_ly)
-importFrom(plotly,plotlyOutput)
-importFrom(plotly,renderPlotly)
-importFrom(plotly,subplot)
-importFrom(purrr,map2)
-importFrom(purrr,map_chr)
-importFrom(purrr,map_dbl)
-importFrom(purrr,map_int)
-importFrom(purrr,map_lgl)
-importFrom(purrr,set_names)
-importFrom(readr,read_csv)
-importFrom(readr,write_csv)
-importFrom(rio,get_ext)
-importFrom(rio,import)
-importFrom(rlang,":=")
-importFrom(rlang,quo)
-importFrom(rlang,sym)
-importFrom(rmarkdown,html_document)
-importFrom(rmarkdown,pdf_document)
-importFrom(rmarkdown,render)
-importFrom(rmarkdown,word_document)
-importFrom(shiny,HTML)
-importFrom(shiny,actionButton)
-importFrom(shiny,actionLink)
-importFrom(shiny,bootstrapPage)
-importFrom(shiny,brushOpts)
-importFrom(shiny,brushedPoints)
-importFrom(shiny,checkboxGroupInput)
-importFrom(shiny,clickOpts)
-importFrom(shiny,column)
-importFrom(shiny,conditionalPanel)
-importFrom(shiny,div)
-importFrom(shiny,downloadButton)
-importFrom(shiny,downloadHandler)
-importFrom(shiny,downloadLink)
-importFrom(shiny,eventReactive)
-importFrom(shiny,fileInput)
-importFrom(shiny,fluidPage)
-importFrom(shiny,fluidRow)
-importFrom(shiny,getCurrentOutputInfo)
-importFrom(shiny,getDefaultReactiveDomain)
-importFrom(shiny,h3)
-importFrom(shiny,h4)
-importFrom(shiny,helpText)
-importFrom(shiny,hoverOpts)
-importFrom(shiny,hr)
-importFrom(shiny,icon)
-importFrom(shiny,isolate)
-importFrom(shiny,mainPanel)
-importFrom(shiny,modalButton)
-importFrom(shiny,modalDialog)
-importFrom(shiny,navbarMenu)
-importFrom(shiny,navbarPage)
-importFrom(shiny,nearPoints)
-importFrom(shiny,observe)
-importFrom(shiny,observeEvent)
-importFrom(shiny,outputOptions)
-importFrom(shiny,plotOutput)
-importFrom(shiny,radioButtons)
-importFrom(shiny,reactive)
-importFrom(shiny,reactiveValues)
-importFrom(shiny,renderPlot)
-importFrom(shiny,renderTable)
-importFrom(shiny,renderText)
-importFrom(shiny,renderUI)
-importFrom(shiny,req)
-importFrom(shiny,selectInput)
-importFrom(shiny,selectizeInput)
-importFrom(shiny,shinyApp)
-importFrom(shiny,showModal)
-importFrom(shiny,sidebarLayout)
-importFrom(shiny,sidebarPanel)
-importFrom(shiny,sliderInput)
-importFrom(shiny,span)
-importFrom(shiny,tabPanel)
-importFrom(shiny,tagList)
-importFrom(shiny,tags)
-importFrom(shiny,textInput)
-importFrom(shiny,textOutput)
-importFrom(shiny,titlePanel)
-importFrom(shiny,uiOutput)
-importFrom(shiny,updateSelectInput)
-importFrom(shiny,updateSelectizeInput)
-importFrom(shiny,verticalLayout)
-importFrom(shiny,wellPanel)
-importFrom(shiny,withProgress)
+importFrom(plotly,
+  add_markers,
+  config,
+  ggplotly,
+  layout,
+  plot_ly,
+  plotlyOutput,
+  renderPlotly,
+  subplot
+)
+importFrom(purrr,
+  map2,
+  map_chr,
+  map_dbl,
+  map_int,
+  map_lgl,
+  set_names
+)
+importFrom(readr,
+  read_csv,
+  write_csv
+)
+importFrom(rio,
+  get_ext,
+  import
+)
+importFrom(rlang,
+  ":=",
+  quo,
+  sym
+)
+importFrom(rmarkdown,
+  html_document,
+  pdf_document,
+  render,
+  word_document
+)
+importFrom(shiny,
+  HTML,
+  NS,
+  actionButton,
+  actionLink,
+  checkboxGroupInput,
+  div,
+  downloadButton,
+  downloadHandler,
+  downloadLink,
+  eventReactive,
+  fileInput,
+  getCurrentOutputInfo,
+  getDefaultReactiveDomain,
+  h3,
+  h4,
+  helpText,
+  hr,
+  icon,
+  isolate,
+  modalButton,
+  modalDialog,
+  moduleServer,
+  observeEvent,
+  outputOptions,
+  radioButtons,
+  reactive,
+  reactiveValues,
+  renderText,
+  renderUI,
+  req,
+  selectInput,
+  selectizeInput,
+  shinyApp,
+  showModal,
+  showNotification,
+  sliderInput,
+  span,
+  tagList,
+  tags,
+  textInput,
+  textOutput,
+  uiOutput,
+  updateSelectInput,
+  updateSelectizeInput,
+  withProgress
+)
 importFrom(shinyWidgets,sliderTextInput)
 importFrom(shinycssloaders,withSpinner)
-importFrom(shinyjs,delay)
-importFrom(shinyjs,disable)
-importFrom(shinyjs,enable)
-importFrom(shinyjs,hidden)
-importFrom(shinyjs,hide)
-importFrom(shinyjs,html)
-importFrom(shinyjs,runjs)
-importFrom(shinyjs,show)
-importFrom(shinyjs,useShinyjs)
-importFrom(shinythemes,shinytheme)
-importFrom(stats,median)
-importFrom(stats,na.omit)
-importFrom(stats,optimize)
-importFrom(stats,pnorm)
-importFrom(stats,qnorm)
-importFrom(stats,rbeta)
-importFrom(stats,rbinom)
-importFrom(stats,rpois)
-importFrom(stats,sd)
-importFrom(stats,setNames)
-importFrom(stats,weighted.mean)
-importFrom(tibble,as_tibble)
-importFrom(tibble,deframe)
-importFrom(tibble,enframe)
-importFrom(tibble,tibble)
-importFrom(tidyr,crossing)
-importFrom(tidyr,extract)
-importFrom(tidyr,nest)
-importFrom(tidyr,pivot_longer)
-importFrom(tidyr,spread)
-importFrom(tidyr,unite)
-importFrom(tidyr,unnest)
-importFrom(tidyselect,all_of)
-importFrom(tidyselect,any_of)
-importFrom(utils,data)
-importFrom(utils,globalVariables)
-importFrom(utils,head)
-importFrom(utils,packageDescription)
-importFrom(utils,packageVersion)
-importFrom(utils,read.csv)
-importFrom(waiter,useWaitress)
-importFrom(waiter,withProgressWaitress)
+importFrom(shinyjs,
+  delay,
+  disable,
+  enable,
+  hidden,
+  hide,
+  html,
+  runjs,
+  show,
+  useShinyjs
+)
+importFrom(stats,
+  median,
+  na.omit,
+  optimize,
+  pnorm,
+  qnorm,
+  rbeta,
+  rbinom,
+  rpois,
+  sd,
+  setNames,
+  weighted.mean
+)
+importFrom(tibble,
+  as_tibble,
+  deframe,
+  enframe,
+  tibble
+)
+importFrom(tidyr,
+  crossing,
+  extract,
+  nest,
+  pivot_longer,
+  spread,
+  unite,
+  unnest
+)
+importFrom(tidyselect,
+  all_of,
+  any_of
+)
+importFrom(utils,
+  data,
+  globalVariables,
+  head,
+  packageDescription,
+  packageVersion,
+  read.csv
+)
+importFrom(waiter,
+  useWaitress,
+  withProgressWaitress
+)
