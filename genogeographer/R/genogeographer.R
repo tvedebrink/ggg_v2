@@ -37,7 +37,7 @@
 #' @importFrom shiny updateSelectizeInput textInput showModal
 #' @importFrom shiny radioButtons downloadButton hr withProgress h4 fileInput sliderInput actionButton icon helpText actionLink
 #' @importFrom shiny getCurrentOutputInfo getDefaultReactiveDomain req isolate tagList shinyApp
-#' @importFrom shiny renderText textOutput moduleServer NS showNotification
+#' @importFrom shiny renderText textOutput moduleServer NS showNotification addResourcePath
 #' @importFrom shinyjs runjs useShinyjs hidden disable enable show hide delay html
 #' @importFrom shinycssloaders withSpinner
 #' @importFrom shinyWidgets sliderTextInput

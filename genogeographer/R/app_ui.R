@@ -9,6 +9,8 @@ ui_api <- function(){
   #   bs_theme_update("navbar-padding-y" = "10px") %>%
   #   bs_add_rules(".wide_popover { max-width: none; }")
 
+  addResourcePath("ggg_docs", system.file("www", package = ggg_package))
+
   page_navbar(
     title = "Genogeographer",
     id = "nav",
@@ -23,6 +25,7 @@ ui_api <- function(){
     mod_mh_analyse_ui("mh"),
     mod_reference_databases_ui("refdb"),
     mod_add_reference_ui("addref"),
+    mod_user_guide_ui(),
     mod_about_ui()
   )
 }
