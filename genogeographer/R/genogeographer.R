@@ -49,7 +49,7 @@
 #' @importFrom patchwork wrap_plots
 #' @importFrom parallel mclapply
 #' @importFrom grDevices col2rgb rgb
-#' @importFrom bslib page_navbar bs_theme bs_theme_update bs_add_rules nav_panel nav_menu sidebar layout_sidebar card card_header layout_columns
+#' @importFrom bslib page_navbar bs_theme bs_theme_update bs_add_rules nav_panel nav_menu sidebar layout_sidebar card card_header card_body layout_columns
 utils::globalVariables("where")
 utils::globalVariables("ggg_package")
 utils::globalVariables(c(".", "locus", "x0", "genotype", "pop_label", "neg", "pos", "g1", "g2", "n2_x0",

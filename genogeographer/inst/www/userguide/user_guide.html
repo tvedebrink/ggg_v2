@@ -1,0 +1,286 @@
+<article class="ggg-userguide">
+
+<header>
+  <h2>User Guide for GenoGeographer (0.3.1)</h2>
+  <p class="text-muted">Claus B&oslash;rsting, Vania Pereira, Torben Tvedebrink<br>August 2024</p>
+</header>
+
+<section>
+  <h3 class="mt-4">Introduction</h3>
+  <p>GenoGeographer (Tvedebrink et al., 2017; 2018; 2019) is a software used for population assignment of an
+  individual in a forensic genetic context. Typical ancestry inference studies of a population or individual rely,
+  to some extent, on the knowledge of the history of the population and its parental ancestry components. The
+  ancestry investigations aim to ascertain the proportion of each parental ancestry component in the population
+  or individual. In a forensic context, however, the biogeographic ancestry of an individual is generally unknown,
+  and a population assignment is carried out instead. Here, the profile is evaluated in several reference
+  populations present in a database to assess the most likely biogeographical origin of the profile.</p>
+
+  <p>GenoGeographer provides two types of analyses after the DNA profile with pre-selected Ancestry Informative
+  Markers (AIMs) from the person of interest is uploaded to the software:</p>
+
+  <p>First, it performs an outlier test (z-score test) of the AIM profile in all reference populations, where the null
+  hypothesis H<sub>0</sub> = &lsquo;The AIM profile originates from the reference population&rsquo; is either accepted or rejected using
+  a one-sided 95% confidence level. An AIM profile with z-score &le;1.64 lies within the confidence interval, and
+  H<sub>0</sub> is accepted, whereas an AIM profile with z-score &gt;1.64 is considered an outlier and H<sub>0</sub> is rejected.</p>
+
+  <p>Second, it performs calculations of the evidential weights under user-defined hypotheses in the form of
+  likelihood ratios (LRs). LR = P(E|H<sub>1</sub>)/P(E|H<sub>2</sub>), where H<sub>1</sub> = the tested individual belongs to population A, and
+  H<sub>2</sub> = the tested individual belongs to population B. LRs should only be calculated if the outlier tests indicate
+  that the database with reference populations includes at least one likely population of origin and population A
+  must be the most likely population (z-score &le;1.64).</p>
+
+  <p>GenoGeographer includes reference population databases for four panels of AIMs: The Precision ID Ancestry
+  panel (Pereira et al., 2017; Mogensen et al., 2020; K&ouml;ksal et al., 2023), the Seldin Panel (Kosoy et al., 2009),
+  The Kidd panel (Kidd et al., 2014), and the VISAGE basic tool (Xavier et al., 2020).</p>
+
+  <p>A stepwise protocol with screen-dump examples from GenoGeographer is given below:</p>
+</section>
+
+<section>
+  <h3 class="mt-4">Work-flow</h3>
+  <ol>
+
+    <li>
+      <p>Open GenoGeographer (<a href="http://apps.math.aau.dk/aims/" target="_blank" rel="noopener">Genogeographer (aau.dk)</a>).</p>
+    </li>
+
+    <li>
+      <p>Click on &lsquo;Analyse AIMs profile&rsquo; (top of the screen) and upload the AIM profile (.csv format) by clicking on
+      &lsquo;Browse&hellip;&rsquo; and selecting the AIM profile of interest. The csv file should contain one column with locus names
+      (e.g. rs10007810) and one column with genotypes (e.g. AA or CT). The locus and genotype columns may be
+      defined after uploading the file using the drop-down menus on the left of the screen.</p>
+    </li>
+
+    <li>
+      <p>Define the settings for the analysis (Figure 1) and click &lsquo;Analyse!&rsquo;.</p>
+
+      <figure class="float-end ms-3 mb-2" style="max-width: 240px;">
+        <img src="ggg_docs/userguide/fig1_settings.png" class="img-fluid border rounded"
+             alt="The settings panel of the Analyse AIMs profile tab: grouping type, minimum sample size, admixture, confidence level, reference database selection and exponential tilting, followed by the Analyse! and Reset buttons.">
+        <figcaption class="small text-muted mt-1">Figure 1.</figcaption>
+      </figure>
+
+      <p>Grouping type: &lsquo;Meta-populations&rsquo; should be chosen, since the AIMs were originally selected for separation of
+      continental populations. However, selection of individual &lsquo;Populations&rsquo; may provide the experienced analyst with
+      some hints to the bio-geographic origin of the person of interest. Meta-populations are groups of individual
+      populations that were grouped according to the STRUCTURE analysis shown under &lsquo;Reference Databases&rsquo; (top
+      of the screen). There are six major meta-populations: Sub-Saharan Africa, North Africa, Europe, Middle East,
+      South-Central Asia, and East Asia.</p>
+
+      <p>&lsquo;Minimum sample-size&rsquo; of the reference populations should be 75 individuals to allow reasonable estimates of
+      allele frequencies.</p>
+
+      <p>Simulated two-way 1:1 admixtures of the meta-populations may be considered as reference populations in
+      the analysis by ticking the &lsquo;Admixture&rsquo; box. This should not be the first choice, but may be useful depending on
+      the results from the outlier test or if specific hypotheses involving admixed populations need to be considered.</p>
+
+      <p>The confidence interval of the calculated population likelihoods and LRs should be set to 95%. If two
+      population likelihoods are not significantly different according to the confidence interval, this will be indicated
+      in the LR table (see Figure 6).</p>
+
+      <p>The proper reference database should be selected in the &lsquo;Select reference database&rsquo; drop-down menu.</p>
+
+      <p>If needed, adjust the p-values by exponential tilting by ticking the &lsquo;Adjust&rsquo; box. This will slow the analysis and
+      is generally not necessary.</p>
+
+      <div class="clearfix"></div>
+    </li>
+
+    <li>
+      <p>Graphics (Figure 2) and tables (Figure 3 and 4) of the GenoGeographer analysis are available for
+      interpretation.</p>
+
+      <figure>
+        <img src="ggg_docs/userguide/fig2_graphics.png" class="img-fluid border rounded" style="max-width: 720px;"
+             alt="Left: error-bar plot of the log10 population likelihoods with confidence intervals for six metapopulations and three admixed populations, Europe highest. Right: world map coloured by the same likelihood scale, with Europe highlighted.">
+        <figcaption class="mt-1">
+          <p>Figure 2. Log<sub>10</sub> to the population likelihoods of the six metapopulations and three admixed
+          populations (West Greenland, East Greenland, and Horn of Africa) are indicated with confidence
+          intervals on the left. The three admixed populations are shown here by default, because they are not
+          included in any of the metapopulations. On the right is shown a map that indicate the most likely
+          population of origin using the same colours as in the diagram on the left.</p>
+          <p>In the example shown, the most likely population of origin is Europe.</p>
+        </figcaption>
+      </figure>
+
+      <figure>
+        <img src="ggg_docs/userguide/fig3_tables.png" class="img-fluid border rounded" style="max-width: 720px;"
+             alt="Results table with one row per population: log10 likelihood, confidence interval, z-score and p-value. Europe (z-score 0.218, p-value 0.414) and Middle East (1.196, 0.116) are not rejected; all other populations have p-values at or near 0.">
+        <figcaption class="mt-1">
+          <p>Figure 3. Log<sub>10</sub> to the population likelihoods of the six metapopulations and three admixed
+          populations are indicated with confidence intervals. The results from the outlier test (z-score test) are
+          shown in the two right-most columns. The colours are the same as in figure 2.</p>
+          <p>If the z-score &le;1.64, the AIM profile is not considered an outlier in the tested population. The p-value is the
+          probability that the null hypothesis of the z-score test is true. If the p-value &lt;0.05 (z-score &gt;1.64), the null
+          hypothesis is rejected and the AIM profile is considered an outlier in that reference population.</p>
+          <p>In the example shown, the AIM profile may originate from two metapopulations (Europe and Middle East),
+          whereas it is unlikely that the AIM profile belongs to any of the other populations in the table. Thus, it is
+          reasonable to proceed with the calculation of evidential weights of population assignments (Figure 4). If
+          there were no likely populations among the reference populations (z-score &gt;1.64 for all reference
+          populations), population assignment would be impossible and should not be attempted (with
+          Genogeographer, STRUCTURE, or other tools).</p>
+        </figcaption>
+      </figure>
+
+      <figure>
+        <img src="ggg_docs/userguide/fig4_lr_europe.png" class="img-fluid border rounded" style="max-width: 720px;"
+             alt="The reporting sidebar and the Likelihood ratios table with nine LRs: Europe as numerator against five other metapopulations, and Middle East as numerator against four, each with log10 LR and confidence interval.">
+        <figcaption class="mt-1">
+          <p>Figure 4. Log<sub>10</sub> to LRs are shown with confidence intervals.</p>
+          <p>LR = P(E|H<sub>1</sub>)/P(E|H<sub>2</sub>), where H<sub>1</sub> = the tested individual belongs to population A, and H<sub>2</sub> = the tested
+          individual belongs to population B. Relevant populations may be included using the &lsquo;Include in LR
+          calculation&rsquo; box on the left of the screen. By default, population A must be a likely population (z-score
+          &lt;1.64). This may be circumvented by ticking the &lsquo;LRs with two rejected populations&rsquo; box (not recommended).</p>
+          <p>In the example shown, nine LRs were calculated; five, where Europe was population A and one of the other
+          metapopulations was population B, and four, where Middle East was population A and one of the remaining
+          metapopulations (except Europe) was population B. The smallest LR = 9.42E+4 was obtained when Europe
+          was population A and Middle East was populations B. This was expected since Europe and Middle East were
+          the only two likely populations of origin (Figure 3).</p>
+        </figcaption>
+      </figure>
+    </li>
+
+    <li>
+      <p>The results may be presented in a report in various ways, e.g. in the form of a table, as shown below, in the
+      form of text, or a combination of both.</p>
+
+      <p>Some of the LRs in the table are astronomical and it may be useful to define a maximum reported LR, e.g. LR
+      &gt;10,000 or LR &gt;100,000. The LRs with Middle East as population A are not shown in the table, because they
+      do not include the most likely population of origin (Europe) and could be misleading. F.ex. it is &gt; 1,000,000
+      times more likely to have the AIM profile, if the DNA originates from from an individual that belongs to the
+      Middle Eastern metapopulation than if the DNA originates from an individual that belongs to the North African
+      metapopulation (Figure 4). True, but irrelevant and misleading, because Europe is not considered as a possible
+      population.</p>
+
+      <p>The text may be phrased as follows: &ldquo;<em>The AIM profile indicates that the DNA originates from an individual
+      from the European metapopulation.</em>&rdquo; and &ldquo;<em>It is more than 10,000 times more likely to have the AIM profile, if
+      the DNA originates from an individual that belongs to the European metapopulation than if the DNA originates
+      from an individual that belongs to the Middle Eastern metapopulation, the North African metapopulation, the
+      South-Central Asian metapopulation, the East Asian metapopulation, or the Sub-Saharan African
+      metapopulation.</em>&rdquo;</p>
+
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered align-middle w-auto">
+          <thead>
+            <tr>
+              <th colspan="2" scope="colgroup">LR = P(E|H<sub>1</sub>)/P(E|H<sub>2</sub>)</th>
+              <th scope="col" class="text-end">H<sub>1</sub> = Population A<br>Europe</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th rowspan="5" scope="rowgroup">H<sub>2</sub> = Population B</th><td>Middle East</td><td class="text-end">9.42E+04</td></tr>
+            <tr><td>North Africa</td><td class="text-end">2.42E+11</td></tr>
+            <tr><td>South / Central Asia</td><td class="text-end">5.20E+16</td></tr>
+            <tr><td>East Asia</td><td class="text-end">1.49E+66</td></tr>
+            <tr><td>Sub-Saharan Africa</td><td class="text-end">5.86E+131</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </li>
+
+    <li>
+      <p>The example shown above was fairly straightforward and the individual most likely had a European
+      background.</p>
+
+      <p>The example below is more complicated as it is an example of admixed population background. The z-score
+      test (not shown) indicated only one likely reference population: North Africa (z-score = 0.545 (p-value:
+      0.293)). Figure 5 shows the calculated LRs. The smallest LR was as low as 1,510 (Population A: North Africa;
+      Population B: Middle East), and since both hypotheses involved an admixed population (North Africa and
+      Middle East), an additional analysis was performed, where the box &lsquo;Admixture&rsquo; was ticked off (Figure 6).</p>
+
+      <figure>
+        <img src="ggg_docs/userguide/fig5_lr_nafrica.png" class="img-fluid border rounded" style="max-width: 720px;"
+             alt="The reporting sidebar and the Likelihood ratios table with five LRs, all with North Africa as numerator against Middle East, Europe, South / Central Asia, East Asia and Sub-Saharan Africa.">
+        <figcaption class="mt-1">
+          <p>Figure 5. Log<sub>10</sub> to LRs are shown with confidence intervals.</p>
+          <p>In the example shown, five LRs were calculated; five, where North Africa was population A and one of the
+          other metapopulations was population B. The smallest LR = 1.51E+03 was obtained when North Africa was
+          population A and Middle East was populations B.</p>
+        </figcaption>
+      </figure>
+
+      <p>The outlier tests revealed that three two-way 1:1 admixture populations were possible populations of origin
+      (North Africa &amp; South/Central Asia (z-score = 0.85 (p-value: 0.198)), Middle East &amp; North Africa (z-score =
+      1.20 (p-value: 0.114)), and Europe &amp; North Africa (z-score =1.554 (p-value: 0.06)). Thus, a total of 26 LRs
+      were calculated with all combinations of hypotheses involving the six metapopulations and the three likely
+      two-way 1:1 admixture populations (Figure 6).</p>
+
+      <figure>
+        <img src="ggg_docs/userguide/fig6_lr_admix.png" class="img-fluid border rounded" style="max-width: 720px;"
+             alt="The reporting sidebar and the first ten of 26 LRs with the admixture option ticked, including admixed populations such as Europe &amp; North Africa as numerator or denominator; the first two rows are not significantly different.">
+        <figcaption class="mt-1">
+          <p>Figure 6. Log<sub>10</sub> to LRs are shown with confidence intervals.</p>
+          <p>Only 10 of the 26 calculated LRs are shown. Of the eight LRs where North Africa was selected as
+          population A, the population likelihoods of two alternative hypotheses (Europe &amp; North Africa and Middle
+          East &amp; North Africa) were not significantly different from the North African population likelihood (right
+          side of table). The LRs were 2.1 and 4.2, respectively.</p>
+        </figcaption>
+      </figure>
+
+      <p>The results clearly indicated that there were alternative admixed populations that were as likely an origin as
+      the North African metapopulation. This should be clearly explained in the report both in the table with LRs
+      and in the complimentary text. However, an LR table with 26 LRs in four columns of likely populations
+      (with z-score &lt;1.64) may be overwhelming to interpret. It may be considered to reduce the table to the LRs
+      involving the most likely population as population A, e.g. North Africa (see below).</p>
+
+      <p>The result summary may be phrased as: &ldquo;<em>The AIM profile indicates that the DNA originates from an
+      individual from the North African metapopulation or from another admixed population with contributions
+      from North Africa, Middle East, South/Central Asia or Europe</em>.&rdquo;</p>
+
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered align-middle w-auto">
+          <thead>
+            <tr>
+              <th colspan="2" scope="colgroup">LR = P(E|H<sub>1</sub>)/P(E|H<sub>2</sub>)</th>
+              <th scope="col" class="text-end">H<sub>1</sub> = Population A<br>North Africa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th rowspan="8" scope="rowgroup">H<sub>2</sub> = Population B</th><td>Europe &amp; North Africa</td><td class="text-end">Inconclusive*</td></tr>
+            <tr><td>Middle East &amp; North Africa</td><td class="text-end">Inconclusive*</td></tr>
+            <tr><td>North Africa &amp; South / Central Asia</td><td class="text-end">508&dagger;</td></tr>
+            <tr><td>Middle East</td><td class="text-end">1510</td></tr>
+            <tr><td>Europe</td><td class="text-end">1.02E+05</td></tr>
+            <tr><td>South / Central Asia</td><td class="text-end">4.25E+10</td></tr>
+            <tr><td>East Asia</td><td class="text-end">1.09E+58</td></tr>
+            <tr><td>Sub-Saharan Africa</td><td class="text-end">6.70E+91</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small text-muted">*The population likelihoods were equally likely<br>
+      &dagger;The weight of the evidence is considered to be low, when the LR&lt;1000</p>
+    </li>
+
+  </ol>
+</section>
+
+<section>
+  <h3 class="mt-4">Literature</h3>
+  <ul class="list-unstyled small">
+    <li class="mb-2">R Kosoy, R Nassir, C Tian, PA White, LM Butler, G Silva, R Kittles, MERiquelme, PK Gregersen, JW Belmont, FM De La
+    Vega, MF Seldin (2009). <em>Ancestry informative marker sets for determining continental origin and admixture proportions in common
+    populations in America.</em> Human Mutatation 30, 69-78.</li>
+    <li class="mb-2">KK Kidd, WC Speed, AJ Pakstis, MR Furtado, R Fang, A Madbouly, M Maiers, M Middha, FR Friedlaende, JR Kidd (2014).
+    <em>Progress toward an efficient panel of SNPs for ancestry inference.</em> Forensic Science International: Genetics 10, 23-32.</li>
+    <li class="mb-2">T Tvedebrink, PS Eriksen, HS Mogensen, N Morling (2017). <em>GenoGeographer - A tool for genogeographic inference.</em>
+    Forensic Science International: Genetics Supplement Series 6, e463-e465.</li>
+    <li class="mb-2">V Pereira, HS Mogensen, C B&oslash;rsting, N Morling (2017). <em>Evaluation of the Precision ID Ancestry Panel for crime case work: A SNP
+    typing assay developed for typing of 165 ancestral informative markers.</em> Forensic Science International: Genetics 28, 138-145.</li>
+    <li class="mb-2">T Tvedebrink, PS Eriksen, HS Mogensen, N Morling (2018). <em>Weight of the evidence of genetic investigations of ancestry informative
+    markers.</em> Theoretical Population Biology 120, 1-10.</li>
+    <li class="mb-2">T Tvedebrink, PS Eriksen (2019). <em>Inference of admixed ancestry with Ancestry Informative Markers.</em> Forensic Science International:
+    Genetics 42, 147-153.</li>
+    <li class="mb-2">HS Mogensen, T Tvedebrink, C B&oslash;rsting, V Pereira, N Morling (2020). <em>Ancestry prediction efficiency of the software
+    GenoGeographer using a z-score method and the ancestry informative markers in the Precision ID Ancestry Panel.</em> Forensic Science
+    International: Genetics 44, 102154.</li>
+    <li class="mb-2">C Xavier, M de la Puente, A Mosquera-Miguel, A Freire-Aradas, V Kalamara, A Vidaki, TE Gross, A Revoir, E Po&#347;piech, E
+    Kartasi&#324;ska, M Sp&oacute;lnicka, W Branicki, CE Ames, PM Schneider, C Hohoff, M Kayser, C Phillips, W Parson, VISAGE Consortium
+    (2020). <em>Development and validation of the VISAGE AmpliSeq basic tool to predict appearance and ancestry from DNA.</em> Forensic
+    Science International: Genetics 48, 102336.</li>
+    <li class="mb-2">Z K&ouml;ksal, OL Meyer, JD Andersen, L Gusm&atilde;o, HS Mogensen, V Pereira, C B&oslash;rsting (2023). <em>Pitfalls and challenges with population
+    assignments of individuals from admixed populations: applying GenoGeographer on Brazilian individuals.</em> Forensic Science
+    International: Genetics 67, 102934.</li>
+  </ul>
+</section>
+
+</article>
