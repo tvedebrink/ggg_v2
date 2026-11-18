@@ -38,7 +38,7 @@ mod_reference_databases_ui <- function(id){
       were identified by similar STRUCTURE cluster membership components and by no or a limited number
       of significant allele frequency differences among the included populations."),
       p("The STRUCTURE plot below originates from Mogensen et. al (2020)."),
-      img(src = "meta_structure.png", class = "responsive")
+      img(src = "ggg_docs/meta_structure.png", class = "responsive")
     ),
     nav_panel(
       title = "PCA analysis",
@@ -47,7 +47,7 @@ mod_reference_databases_ui <- function(id){
         EIGENSTRAT identified that the first five eigenvalues were significant in order to infer population
         structure. Thus the pairwise combinations of the first five PCs are plotted below to show the
         population structure in the reference databases."),
-      img(src = "meta_pca.png", class = "responsive")
+      img(src = "ggg_docs/meta_pca.png", class = "responsive")
     )
   )
 }

@@ -11,7 +11,6 @@ options(shiny.maxRequestSize = 500 * 1024^2) ## 500 Mb
 #' on a spreadsheet data containing the necessary columns and information.
 
 #' global.R must define `db_list` and `reporting_panel` (optionally `mh_data`).
-#' www/ must contain meta_structure.png and meta_pca.png (served from the app folder).
 source("global.R", encoding = "UTF-8")
 
 shinyApp(
