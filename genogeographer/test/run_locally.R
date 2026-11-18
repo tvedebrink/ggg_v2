@@ -9,7 +9,7 @@ mh_list <- list(
   out_metas = readRDS("inst/extdata/MH_out_metas.Rds")
 )
 
-genogeographer::app_genogeo(db_list = db_list, reporting_panel = TRUE, mh_data = mh_data)
+genogeographer.devel::app_genogeo(db_list = db_list, reporting_panel = TRUE, mh_data = mh_data)
 
 load_all()
 app_genogeo(db_list = db_ggg, mh_data = mh_list)

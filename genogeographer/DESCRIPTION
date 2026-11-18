@@ -1,4 +1,4 @@
-Package: genogeographer
+Package: genogeographer.devel
 Type: Package
 Title: Methods for Analysing Forensic Ancestry Informative Markers
 Version: 0.3.1
@@ -10,4 +10,4 @@ Description: Evaluates likelihood ratio tests for alleged ancestry. Implements t
 License: GPL (>= 2)
 Encoding: UTF-8
 LazyData: true
-Config/roxygen2/version: 8.1.0
+Config/roxygen2/version: 8.1.1

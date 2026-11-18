@@ -1,14 +1,14 @@
 #'
-#' genogeographer: Methods for analysing forensic Ancestry Informative Markers
+#' genogeographer.devel: Methods for analysing forensic Ancestry Informative Markers
 #'
-#' The genogeographer package provides:
+#' The genogeographer.devel package provides:
 #' genogeo() app_genegeo()
 #'
 #' @section genogeo functions:
 #' See ?genogeo
 #'
 #' @docType package
-#' @name genogeographer
+#' @name genogeographer.devel
 #' @importFrom dplyr starts_with distinct filter select mutate rename row_number
 #' @importFrom dplyr top_n desc pull funs rowwise ungroup arrange case_when bind_rows slice_sample bind_cols
 #' @importFrom dplyr vars group_by summarise n everything between group_vars slice count
