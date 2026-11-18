@@ -9,6 +9,7 @@ mod_add_reference_ui <- function(id){
   nav_panel(
     title = "Add reference populations",
     layout_sidebar(
+      fillable = FALSE,
       sidebar = sidebar(
         width = 350,
         h3("Dataset file"),
@@ -19,6 +20,17 @@ mod_add_reference_ui <- function(id){
         fileInput(ns('info_file'), 'Choose CSV or Excel File', width = "100%",
                   accept = c('text/csv', 'text/comma-separated-values,text/plain', '.csv', '.xlsx', '.xls')),
         uiOutput(ns("info_panel"))
+      ),
+      card(
+        fill = FALSE,
+        card_header("Instructions"),
+        card_body(
+          fill = FALSE,
+          HTML("Download the database and information files to see the required columns and data structure here:"),
+          downloadLink(ns("download_reference_db"), "Reference database example"),
+          HTML(" and "),
+          downloadLink(ns("download_reference_info"), "Information example")
+        )
       ),
       uiOutput(ns("upload_data"))
     )
@@ -234,13 +246,13 @@ mod_add_reference_server <- function(id){
 
       div(
         helpText("Select columns containing the specified information below:"),
-        card(card_header("Population"),
+        card(fill = FALSE, card_header("Population"),
           selectInput(inputId = ns("col_POP"), label = "Identifier (typically shorter names/abbreviations)", choices = info_columns, multiple = FALSE, selected = sel_POP),
           selectInput(inputId = ns("col_population"), label = "Name/description", choices = info_columns, multiple = FALSE, selected = sel_population),
-        ), card(card_header("Metapopulation"),
+        ), card(fill = FALSE, card_header("Metapopulation"),
           selectInput(inputId = ns("col_META"), label = "Identifier (typically shorter names/abbreviations)", choices = info_columns, multiple = FALSE, selected = sel_META),
           selectInput(inputId = ns("col_metapopulation"), label = "Name/description", choices = info_columns, multiple = FALSE, selected = sel_metapopulation),
-        ), card(card_header("Location"),
+        ), card(fill = FALSE, card_header("Location"),
           selectInput(inputId = ns("col_lat"), label = "Latitude", choices = info_columns, multiple = FALSE, selected = sel_lat),
           selectInput(inputId = ns("col_lon"), label = "Longitude", choices = info_columns, multiple = FALSE, selected = sel_lon),
           helpText(paste("If some of the populations are located 'out of region', e.g. Central Europeans samples in the US,
@@ -256,30 +268,45 @@ mod_add_reference_server <- function(id){
       )
     })
 
+    reactive_info_rows <- reactive({
+      data_ <- reactive_selected_data() %>%
+        rename(sample = input$col_sample, pop = input$col_pop, meta = input$col_meta)
+      info_ <- reactive_selected_info() %>%
+        rename(pop = input$col_POP, population = input$col_population,
+               meta = input$col_META, metapopulation = input$col_metapopulation,
+               lat = input$col_lat, lon = input$col_lon)
+      info_ %>% select(pop, population, meta, metapopulation) %>%
+        semi_join(data_, by = c("pop", "meta"))
+    })
+
+    output$selected_populations <- renderDT({
+      dt_table(reactive_info_rows())
+    })
+
     output$info_data <- renderUI({
       if(!is.null(reactive_dataset$success) & !is.null(reactive_info$success)){
-        data_ <- reactive_selected_data() %>%
-          rename(sample = input$col_sample, pop = input$col_pop, meta = input$col_meta)
-        info_ <- reactive_selected_info() %>%
-          rename(pop = input$col_POP, population = input$col_population,
-                 meta = input$col_META, metapopulation = input$col_metapopulation,
-                 lat = input$col_lat, lon = input$col_lon)
-        info_rows <- info_ %>% select(pop, population, meta, metapopulation) %>%
-          semi_join(data_, by = c("pop", "meta"))
-        div(
-          h3("Populations and metapopulations selected from the data"),
-          dt_table(info_rows),
-          h3("Compute"),
-          textInput(inputId = ns("db_name"), label = "Specify database name (will appear in app)", value = sub("\\..*$", "", input$dataset_file$name)),
-          div(tags$b("Click on the button below to execute the calculations... "), tags$text("(May be slow)")),
-          div(
-            actionButton(inputId = ns("comp_x1"), label = "Compute databases", icon = icon("database", verify_fa = FALSE)),
-            shinyjs::disabled(downloadButton(outputId = ns("download_x1"), label = "Download created databases", class = "btn-primary"))
+        tagList(
+          card(
+            fill = FALSE,
+            card_header("Populations and metapopulations selected from the data"),
+            card_body(fill = FALSE, DTOutput(ns("selected_populations"), fill = FALSE))
           ),
-          tags$p("")
+          card(
+            fill = FALSE,
+            card_header("Compute"),
+            card_body(
+              fill = FALSE,
+              textInput(inputId = ns("db_name"), label = "Specify database name (will appear in app)", value = sub("\\..*$", "", input$dataset_file$name)),
+              div(tags$b("Click on the button below to execute the calculations... "), tags$text("(May be slow)")),
+              div(
+                actionButton(inputId = ns("comp_x1"), label = "Compute databases", icon = icon("database", verify_fa = FALSE)),
+                shinyjs::disabled(downloadButton(outputId = ns("download_x1"), label = "Download created databases", class = "btn-primary"))
+              )
+            )
+          )
         )
       }
-      else tags$p("")
+      else NULL
     })
 
     observeEvent(input$comp_x1, {
@@ -319,40 +346,44 @@ mod_add_reference_server <- function(id){
       }
     )
 
-    output$upload_data <- renderUI({
+    output$data_preview <- renderDT({
       data_ <- reactive_selected_data()
-      data_n <- nrow(data_)
-      n_data <- if(data_n > 10) 10 else data_n
-      info_ <- reactive_selected_info()
-      info_n <- nrow(info_)
-      n_info <- if(info_n > 10) 10 else info_n
-      ##
       rs_cols <- if(is.null(input$col_rs)) FALSE else grepl(input$col_rs, names(data_))
+      data_ %>% head(n = min(nrow(data_), 10)) %>% dt_simple() %>%
+        formatStyle(columns = rs_cols, backgroundColor = "#ecf1f2")
+    })
+
+    output$info_preview <- renderDT({
+      info_ <- reactive_selected_info()
+      info_ %>% head(n = min(nrow(info_), 10)) %>% dt_simple()
+    })
+
+    output$upload_data <- renderUI({
+      data_n <- nrow(reactive_selected_data())
+      n_data <- if(data_n > 10) 10 else data_n
+      info_n <- nrow(reactive_selected_info())
+      n_info <- if(info_n > 10) 10 else info_n
       tagList(
         card(
-          card_header("Instructions"),
-          HTML("Download the database and information files to see the required columns and data structure here:"),
-          downloadLink(ns("download_reference_db"), "Reference database example"),
-          HTML(" and "),
-          downloadLink(ns("download_reference_info"), "Information example")
-        ),
-        card(
+          fill = FALSE,
           card_header("Uploaded dataset file"),
-          tags$p(paste0('The first ', n_data, ' out of ', data_n, ' rows  the dataset file are shown below.
-                        Columns matching SNP column indicator ("', input$col_rs, '") are highlighted.')),
-          renderDT({
-            data_ %>% head(n = n_data) %>% dt_simple() %>%
-              formatStyle(columns = rs_cols, backgroundColor = "#ecf1f2")
-          }),
-          helpText(reactive_dataset$success)
+          card_body(
+            fill = FALSE,
+            tags$p(paste0('The first ', n_data, ' out of ', data_n, ' rows  the dataset file are shown below.
+                          Columns matching SNP column indicator ("', input$col_rs, '") are highlighted.')),
+            DTOutput(ns("data_preview"), fill = FALSE),
+            helpText(reactive_dataset$success)
+          )
         ),
         card(
+          fill = FALSE,
           card_header("Uploaded information file"),
-          tags$p(paste0('The first ', n_info, ' out of ', info_n, ' rows of the information file are shown below.')),
-          renderDT({
-            info_ %>% head(n = n_info) %>% dt_simple()
-          }),
-          helpText(reactive_info$success)
+          card_body(
+            fill = FALSE,
+            tags$p(paste0('The first ', n_info, ' out of ', info_n, ' rows of the information file are shown below.')),
+            DTOutput(ns("info_preview"), fill = FALSE),
+            helpText(reactive_info$success)
+          )
         ),
         uiOutput(ns("info_data"))
       )
