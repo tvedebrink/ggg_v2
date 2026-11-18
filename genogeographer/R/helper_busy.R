@@ -31,18 +31,21 @@ withBusyIndicatorUI <- function(button) {
 }
 
 # Call this function from the server with the button id that is clicked and the
-# expression to run when the button is clicked
-withBusyIndicatorServer <- function(buttonId, expr) {
+# expression to run when the button is clicked. `session` is required so the
+# CSS selectors below can be resolved to the fully namespaced id when used
+# inside a shiny module (selector-based shinyjs calls are not auto-namespaced).
+withBusyIndicatorServer <- function(buttonId, session, expr) {
   # UX stuff: show the "busy" message, hide the other messages, disable the button
-  loadingEl <- sprintf("[data-for-btn=%s] .btn-loading-indicator", buttonId)
-  doneEl <- sprintf("[data-for-btn=%s] .btn-done-indicator", buttonId)
-  errEl <- sprintf("[data-for-btn=%s] .btn-err", buttonId)
-  disable(buttonId)
+  ns_id <- session$ns(buttonId)
+  loadingEl <- sprintf("[data-for-btn=%s] .btn-loading-indicator", ns_id)
+  doneEl <- sprintf("[data-for-btn=%s] .btn-done-indicator", ns_id)
+  errEl <- sprintf("[data-for-btn=%s] .btn-err", ns_id)
+  disable(id = ns_id, asis = TRUE)
   show(selector = loadingEl)
   hide(selector = doneEl)
   hide(selector = errEl)
   on.exit({
-    enable(buttonId)
+    enable(id = ns_id, asis = TRUE)
     hide(selector = loadingEl)
   })
 
@@ -53,7 +56,7 @@ withBusyIndicatorServer <- function(buttonId, expr) {
     show(selector = doneEl)
     delay(2000, hide(selector = doneEl, anim = TRUE, animType = "fade", time = 0.5))
     value
-  }, error = function(err) { errorFunc(err, buttonId) })
+  }, error = function(err) { errorFunc(err, ns_id) })
 }
 
 # When an error happens after a button click, show the error

@@ -19,26 +19,25 @@
 #' @importFrom tidyselect any_of all_of
 #' @importFrom magrittr "%>%"
 #' @importFrom readr write_csv read_csv
-#' @importFrom leaflet colorNumeric leaflet addTiles addProviderTiles addPolygons addCircles providers addLegend leafletOutput renderLeaflet
+#' @importFrom leaflet colorNumeric leaflet addTiles addProviderTiles addPolygons addCircles providers addLegend leafletOutput renderLeaflet providerTileOptions
 #' @importFrom rlang sym quo ":="
 #' @importFrom knitr kable
 #' @importFrom glue glue
 #' @importFrom htmltools h5 includeHTML p img
 #' @importFrom waiter withProgressWaitress useWaitress
-#' @importFrom shinythemes shinytheme
 #' @importFrom rio import get_ext
 #' @importFrom rmarkdown render pdf_document html_document word_document
 #' @importFrom stats optimize pnorm qnorm rbeta rbinom rpois sd setNames weighted.mean median na.omit
 #' @importFrom utils data packageDescription packageVersion read.csv head globalVariables
 #' @importFrom DT formatStyle styleEqual datatable DTOutput renderDT
 #' @importFrom tibble tibble as_tibble enframe deframe
-#' @importFrom shiny shinyApp tags wellPanel HTML sidebarLayout sidebarPanel fluidPage observeEvent renderUI h3 mainPanel span updateSelectInput
-#' @importFrom shiny uiOutput column div downloadHandler renderTable observe selectInput reactive outputOptions verticalLayout modalButton
-#' @importFrom shiny downloadLink reactiveValues eventReactive checkboxGroupInput conditionalPanel selectizeInput renderPlot modalDialog
-#' @importFrom shiny fluidRow plotOutput brushOpts clickOpts hoverOpts nearPoints updateSelectizeInput brushedPoints textInput showModal
-#' @importFrom shiny radioButtons downloadButton hr withProgress h4 titlePanel fileInput sliderInput actionButton icon helpText actionLink
-#' @importFrom shiny getCurrentOutputInfo getDefaultReactiveDomain req bootstrapPage navbarPage tabPanel isolate tagList navbarMenu
-#' @importFrom shiny renderText textOutput
+#' @importFrom shiny tags HTML observeEvent renderUI h3 span updateSelectInput
+#' @importFrom shiny uiOutput div downloadHandler selectInput reactive outputOptions modalButton
+#' @importFrom shiny downloadLink reactiveValues eventReactive checkboxGroupInput selectizeInput modalDialog
+#' @importFrom shiny updateSelectizeInput textInput showModal
+#' @importFrom shiny radioButtons downloadButton hr withProgress h4 fileInput sliderInput actionButton icon helpText actionLink
+#' @importFrom shiny getCurrentOutputInfo getDefaultReactiveDomain req isolate tagList shinyApp
+#' @importFrom shiny renderText textOutput moduleServer NS showNotification
 #' @importFrom shinyjs runjs useShinyjs hidden disable enable show hide delay html
 #' @importFrom shinycssloaders withSpinner
 #' @importFrom shinyWidgets sliderTextInput
@@ -50,6 +49,7 @@
 #' @importFrom patchwork wrap_plots
 #' @importFrom parallel mclapply
 #' @importFrom grDevices col2rgb rgb
+#' @importFrom bslib page_navbar bs_theme bs_theme_update bs_add_rules nav_panel nav_menu sidebar layout_sidebar card card_header layout_columns
 utils::globalVariables("where")
 utils::globalVariables("ggg_package")
 utils::globalVariables(c(".", "locus", "x0", "genotype", "pop_label", "neg", "pos", "g1", "g2", "n2_x0",
@@ -60,5 +60,10 @@ utils::globalVariables(c(".", "locus", "x0", "genotype", "pop_label", "neg", "po
                          "den", "denominator", "den_p_value", "den_logP", "den_varlogP", "den_accept", "tool_tip",
                          "meta", "accept", "p1", "p2", "pop", "latlon", "colour", "allele",
                          "P1", "P2", "n1", "n2", "x1", "x2", "f1", "f2", "pair", "admix", "Kidd", "Seldin",
-                         "Significantly different", "lab", "population", "metapopulation", "db_x1"))
+                         "Significantly different", "lab", "population", "metapopulation", "db_x1",
+                         "MH", "MH_raw", "sample_name", "geno", "likelihood",
+                         "phased", "allele1", "allele2", "position", "snp", "n_snps_found", "n_snps_expected", "allele",
+                         "devi", "critical_value", "log10_likelihood", "log10_LR",
+                         "meta_num", "meta_den", "accept_num", "accept_den", "p_value_num", "p_value_den",
+                         "neg_log10_p", "accept_chr", "sigma", "mu", "devi_lwr", "devi_upr"))
 NULL
