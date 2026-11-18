@@ -211,10 +211,19 @@ mod_mh_analyse_server <- function(id, mh_data = NULL, db_list = NULL){
           n_comb <- nrow(dplyr::distinct(lik$ci_unobserved, sample_name, meta))
           panels <- c(panels, list(
             div(class = "alert alert-warning",
-                HTML(paste0("<b>The confidence interval of the log<sub>10</sub> likelihood could not be calculated for ", n_comb,
-                            " sample/meta-population combination(s)</b>, because the profile contains haplotypes that have not ",
-                            "previously been observed in the reference data of the meta-population (see the table below the plot). ",
-                            "The likelihood itself is not affected."))
+                HTML(paste0("<b>", n_comb, " sample/meta-population combination(s) contain haplotypes that have not ",
+                            "previously been observed</b> in the reference data of the meta-population (see the table below the plot). ",
+                            "The likelihood of these rests on the profile's own haplotype alone, and the confidence interval is ",
+                            "correspondingly uncertain."))
+            )
+          ))
+        }
+        if(!is.null(lik$ci_failed) && nrow(lik$ci_failed) > 0){
+          panels <- c(panels, list(
+            div(class = "alert alert-danger",
+                HTML(paste0("<b>The confidence interval of the log<sub>10</sub> likelihood could not be calculated for ",
+                            nrow(lik$ci_failed), " sample/meta-population combination(s)</b>: ", and_text(unique(lik$ci_failed$meta)),
+                            ". The likelihood itself is not affected."))
             )
           ))
         }
@@ -241,8 +250,7 @@ mod_mh_analyse_server <- function(id, mh_data = NULL, db_list = NULL){
               fill = FALSE,
               HTML("<p>The table below shows, for the selected sample, the likelihood of observing its MH
                  profile in each meta-population (based on precomputed genotype probabilities) and its
-                 first-order standard error (<code>se_log10</code>, on the log<sub>10</sub> scale; missing when the profile
-                 contains haplotypes not previously observed), the likelihood ratio versus the most likely meta-population (<code>LR_best</code>) and the
+                 first-order standard error (<code>se_log10</code>, on the log<sub>10</sub> scale; missing if it could not be calculated), the likelihood ratio versus the most likely meta-population (<code>LR_best</code>) and the
                  relative probability across meta-populations assuming a uniform prior
                  (<code>rel_prob</code>, NOT a p-value). The outlier test (<code>z_score</code>,
                  <code>p_value</code>, <code>accept</code>) is calibrated against precomputed null models
@@ -256,7 +264,12 @@ mod_mh_analyse_server <- function(id, mh_data = NULL, db_list = NULL){
             card_body(
               fill = FALSE,
               textOutput(ns("LR_one_pop")),
-              DTOutput(ns("lr_list"), fill = FALSE)
+              layout_columns(
+                fill = FALSE,
+                col_widths = c(6, 6),
+                DTOutput(ns("lr_list"), fill = FALSE),
+                uiOutput(ns("LRplot_panel"))
+              )
             )
           )
         ))
@@ -314,17 +327,42 @@ mod_mh_analyse_server <- function(id, mh_data = NULL, db_list = NULL){
       req(df)
       if(nrow(df) <= 1) return(NULL)
       accepted_control <- if(is.null(input$LR_accept)) FALSE else (input$LR_accept == "allow")
-      mh_LR_table(df, who = input$LR_selected, only_accepted = !accepted_control)
+      ## Without standard errors (no reference haplotype data) only point estimates are available
+      if(anyNA(df$se_log10)) return(list(res = NULL, LR_Tab = mh_LR_table(df, who = input$LR_selected, only_accepted = !accepted_control)))
+      res <- mh_as_aims_result(df)
+      list(res = res,
+           LR_Tab = LR_table(z_df = res, who = input$LR_selected, CI = input$CI / 100, only_accepted = !accepted_control)$LR)
     })
 
     output$lr_list <- renderDT({
-      lr_tab <- reactive_LR_table()
-      req(lr_tab)
-      lr_tab %>%
-        dplyr::rename(Numerator = numerator, Denominator = denominator, `log10 LR` = log10_LR) %>%
-        dplyr::select(Numerator, Denominator, `log10 LR`) %>%
-        dt_table() %>%
-        DT::formatSignif("log10 LR", digits = 4)
+      LR_Tab <- reactive_LR_table()
+      req(LR_Tab)
+      if(is.null(LR_Tab$res)){
+        return(LR_Tab$LR_Tab %>%
+          dplyr::rename(Numerator = numerator, Denominator = denominator, `log10 LR` = log10_LR) %>%
+          dplyr::select(Numerator, Denominator, `log10 LR`) %>%
+          dt_table() %>%
+          DT::formatSignif("log10 LR", digits = 4))
+      }
+      LR_list(result = LR_Tab$res, LR_tab = LR_Tab$LR_Tab)
+    })
+
+    observeEvent(input$LR_selected, { ## The most probable accepted meta-population cannot be removed
+      df <- reactive_sample_result()
+      if(is.null(df) || !any(df$accept)) return(NULL)
+      max_p <- df$meta[df$accept][which.max(df$p_value[df$accept])]
+      if(!max_p %in% input$LR_selected) updateSelectizeInput(session, "LR_selected", selected = unique(c(input$LR_selected, max_p)))
+    })
+
+    output$LRplot <- renderPlotly({
+      LR_Tab <- reactive_LR_table()
+      req(LR_Tab, LR_Tab$res)
+      if(is.null(LR_Tab$LR_Tab) || nrow(LR_Tab$LR_Tab) == 0) return(NULL)
+      LR_plot_ly(result = LR_Tab$res, LR_list = LR_Tab$LR_Tab)
+    })
+
+    output$LRplot_panel <- renderUI({
+      withSpinner(plotlyOutput(ns("LRplot"), width = "100%", fill = FALSE), type = 4)
     })
 
     output$result_table <- renderDT({
@@ -390,8 +428,9 @@ mod_mh_analyse_server <- function(id, mh_data = NULL, db_list = NULL){
         card_header("Haplotypes not previously observed"),
         card_body(
           fill = FALSE,
-          p("The confidence interval of the log likelihood could not be calculated for these meta-populations, since the ",
-            "profile contains a haplotype with a combination of SNP alleles that is not observed in the reference data."),
+          p("The profile contains a haplotype with a combination of SNP alleles that is not observed in the reference data of ",
+            "these meta-populations. Its probability rests on the profile's own haplotype alone, so the confidence interval of ",
+            "the log likelihood is correspondingly uncertain."),
           DTOutput(ns("ci_unobserved_table"), fill = FALSE)
         )
       )

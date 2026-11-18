@@ -310,20 +310,32 @@ mh_count_scale <- function(n_ext, e, N){
 #' number of the profile's haplotypes in the clique/separator cell, `p_a` the cell proportion in the extended
 #' database, `s_a` the small-count factor of `mh_count_scale()`), `Var(log P) = N / (N + 2)^2 * Var_i(g_i)`.
 #' `g_i` is summed over all markers, which keeps the dependence between markers. Every cell of the profile
-#' occurs in the extended database, so the variance is always defined.
+#' occurs in the extended database, so the variance is always defined. A cell that does not occur in the reference
+#' haplotypes (only in the profile) is reported as 'not previously observed': its probability then rests on the
+#' profile's own haplotype alone.
 #' @param prep The meta-population's slice of `mh_ci_prepare()`.
 #' @param items One element per MH marker used: `list(MH, pair)` with the profile's motif pair.
-#' @return The variance of `log10_likelihood` (`NA` if the marker data are not available).
+#' @param snp_by_mh Named list of the SNP ids of each MH marker, ordered by position.
+#' @return A list with `var_log10` (the variance of `log10_likelihood`; `NA` if the marker data are not available)
+#'   and `unobserved` (data frame with `MH`, `haplotype`, `snps`: the SNP alleles of each clique cell that does not
+#'   occur in the reference haplotypes; `NULL` if none).
 #' @noRd
-mh_log10_var <- function(prep, items){
-  g <- NULL; N <- NULL
+mh_log10_var <- function(prep, items, snp_by_mh){
+  g <- NULL; N <- NULL; unobserved <- list()
   for(it in items){
     e <- prep[[it$MH]]
-    if(is.null(e)) return(NA_real_)
+    if(is.null(e)) return(list(var_log10 = NA_real_, unobserved = NULL))
     if(is.null(g)){ N <- e$N; g <- numeric(N + 2) }
     haps <- strsplit(it$pair, "")
     for(M in e$margins){
       key <- vapply(haps, function(ch) paste(ch[M$pos], collapse = ""), character(1))
+      if(M$sign == 1){
+        for(h in which(!key %in% M$cells)){
+          unobserved[[length(unobserved) + 1]] <- data.frame(
+            MH = it$MH, haplotype = it$pair[h],
+            snps = paste0(snp_by_mh[[it$MH]][M$pos], ":", haps[[h]][M$pos], collapse = ", "))
+        }
+      }
       cells <- c(M$cells, setdiff(key, M$cells))
       cell <- match(key, cells)
       rows <- c(M$rows, cell)
@@ -336,29 +348,46 @@ mh_log10_var <- function(prep, items){
       g <- g + (coef / (n / (N + 2)))[rows]
     }
   }
-  if(is.null(g)) return(NA_real_)
-  N / (N + 2)^2 * mean((g - mean(g))^2) / log(10)^2
+  if(is.null(g)) return(list(var_log10 = NA_real_, unobserved = NULL))
+  list(var_log10 = N / (N + 2)^2 * mean((g - mean(g))^2) / log(10)^2,
+       unobserved = if(length(unobserved) > 0) unique(do.call(rbind, unobserved)) else NULL)
 }
 
 #' Standard error of the log10 likelihood for every sample and meta-population
+#'
+#' A failure of the calculation never stops the analysis: the standard error is then `NA` and the combination is
+#' listed in `failed`.
 #' @param per_mh,stats The per-(sample, MH) table and the matching list of per-marker results
 #'   (`pair`) built in `mh_profile_likelihood()`.
-#' @return A list with `se` (`sample_name`, `meta`, `se_log10`) and `unobserved`, an empty tibble (the
-#'   variance is always defined, see `mh_log10_var()`; kept until the module is updated).
+#' @return A list with `se` (`sample_name`, `meta`, `se_log10`), `unobserved` (`sample_name`, `meta`, `MH`,
+#'   `haplotype`, `snps`) and `failed` (`sample_name`, `meta`, `reason`).
 #' @noRd
 mh_likelihood_ci <- function(per_mh, stats, metas, ci_data, snp_map){
+  snp_ord <- snp_map[order(snp_map$MH, snp_map$position), ]
+  snp_by_mh <- split(snp_ord$snp, snp_ord$MH)
   has_pair <- !vapply(stats, function(x) is.null(x$pair), logical(1))
-  se <- list()
+  se <- list(); unobs <- list(); failed <- list()
   for(s in unique(per_mh$sample_name)){
     idx <- which(per_mh$sample_name == s & has_pair)
     items <- lapply(idx, function(i) list(MH = per_mh$MH[i], pair = stats[[i]]$pair))
     for(meta in metas){
-      se[[length(se) + 1]] <- data.frame(sample_name = s, meta = meta, se_log10 = sqrt(mh_log10_var(ci_data[[meta]], items)))
+      r <- tryCatch(mh_log10_var(ci_data[[meta]], items, snp_by_mh),
+                    error = function(e) list(var_log10 = NA_real_, unobserved = NULL, error = conditionMessage(e)))
+      v <- suppressWarnings(sqrt(r$var_log10))
+      if(is.na(v) || !is.finite(v)){
+        v <- NA_real_
+        failed[[length(failed) + 1]] <- data.frame(sample_name = s, meta = meta,
+                                                   reason = if(is.null(r$error)) "no reference data for the markers" else r$error)
+      }
+      se[[length(se) + 1]] <- data.frame(sample_name = s, meta = meta, se_log10 = v)
+      if(!is.null(r$unobserved)) unobs[[length(unobs) + 1]] <- data.frame(sample_name = s, meta = meta, r$unobserved)
     }
   }
   list(se = tibble::as_tibble(do.call(rbind, se)),
-       unobserved = tibble::tibble(sample_name = character(), meta = character(), MH = character(),
-                                   haplotype = character(), snps = character()))
+       unobserved = tibble::as_tibble(if(length(unobs) > 0) do.call(rbind, unobs) else
+         data.frame(sample_name = character(), meta = character(), MH = character(), haplotype = character(), snps = character())),
+       failed = tibble::as_tibble(if(length(failed) > 0) do.call(rbind, failed) else
+         data.frame(sample_name = character(), meta = character(), reason = character())))
 }
 
 #' Compute per-sample, per-meta-population likelihoods and outlier test of a phased MH profile
@@ -387,7 +416,9 @@ mh_likelihood_ci <- function(per_mh, stats, metas, ci_data, snp_map){
 #'   (deviance threshold at `alpha`) and `accept` (`p_value > alpha`).
 #'   `se_log10` (first-order standard error of `log10_likelihood`, see `mh_log10_var()`; `NA` if no
 #'   `ci_data` was supplied).
-#'   `ci_unobserved`: always empty (the variance is defined for every profile), kept for the module.
+#'   `ci_unobserved`: tibble of (sample, meta, MH, haplotype, SNP alleles) of haplotypes with a SNP combination
+#'   not previously observed in the reference data of that meta-population (`NULL` when no `ci_data` was supplied).
+#'   `ci_failed`: tibble of (sample, meta, reason) for which `se_log10` could not be calculated.
 #'   `unmatched_loci`: locus ids in the file not part of any known MH marker.
 #'   `incomplete_mh`: tibble of (sample, MH) combinations dropped due to missing SNPs.
 #'   `not_found`: tibble of (sample, MH) genotype combinations missing from the reference data.
@@ -482,14 +513,28 @@ mh_profile_likelihood <- function(canon_long, snp_map = mh_snp_map(), probs_tbl 
   ci <- if(is.null(ci_data)) NULL else mh_likelihood_ci(per_mh, mh_meta_stats, meta_cols, ci_data, snp_map)
   result <- if(is.null(ci)) dplyr::mutate(result, se_log10 = NA_real_) else dplyr::left_join(result, ci$se, by = c("sample_name", "meta"))
   list(result = result, unmatched_loci = unmatched_loci, incomplete_mh = incomplete_mh, not_found = not_found,
-       ci_unobserved = ci$unobserved)
+        ci_unobserved = ci$unobserved, ci_failed = ci$failed)
 }
 
-#' Pairwise likelihood ratios for an MH result table
+#' Express one sample's MH result in the format of the AIMs results
 #'
-#' Mirrors `LR_table()` (see `api_LR_table.R`), but without the log-likelihood confidence
-#' interval decomposition - MH likelihoods come from precomputed table look-ups, not a fitted
-#' graphical model, so there is no `varlogP`-style variance available to derive a CI from.
+#' The AIMs functions `LR_table()`, `LR_list()` and `LR_plot_ly()` work on a result with the grouping variable
+#' first, `logP`, `varlogP`, `z_score`, `p_value` and `accept`. For MH, `logP` is the log10 likelihood and `varlogP` the
+#' variance of it (`se_log10^2`). The meta-populations have independent reference data, so the variance of a log LR is
+#' the sum of the two variances, as for the AIMs. The `info` attribute only maps the names to themselves.
+#' @param df A single sample's slice of `mh_profile_likelihood()`'s `result` tibble.
+#' @noRd
+mh_as_aims_result <- function(df){
+  out <- tibble::tibble(meta = df$meta, logP = df$log10_likelihood, varlogP = df$se_log10^2,
+                        z_score = df$z_score, p_value = df$p_value, accept = df$accept)
+  attr(out, "info") <- tibble::tibble(meta = df$meta, metapopulation = df$meta)
+  out
+}
+
+#' Pairwise likelihood ratios for an MH result table (point estimates only)
+#'
+#' Fallback of the AIMs-style `LR_table()` (used via `mh_as_aims_result()`) when no standard errors of the log
+#' likelihoods are available: log10 ratios without confidence intervals.
 #' @param result A single sample's slice of `mh_profile_likelihood()`'s `result` tibble.
 #' @param who A vector of meta-population names to include. If `NULL`, all are used (ordered by likelihood).
 #' @param only_accepted Restrict the ratios to pairs including at least one accepted population.
