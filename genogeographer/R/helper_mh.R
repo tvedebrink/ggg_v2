@@ -11,12 +11,15 @@
 ## 'haps' sheet of the pedro reference workbook - see 'data.R'/'fit_structures.R').
 ##
 ## Accepted input formats (see inst/extdata/mh_sample_*.csv for examples):
-##  - long, two columns for alleles:  sample_name;locus;A;B      (phased: A/B = haplotype copy 1/2)
-##  - long, one column for alleles:   sample_name;locus;allele   (unphased genotype, e.g. "GT")
-##  - wide, two rows per sample:      sample_name;<locus1>;...   (phased: one row per haplotype copy)
-##  - wide, one row per sample:       sample_name;<locus1>;...   (unphased genotype per cell, e.g. "GT")
+##  - long, two columns for alleles:  sample_name;locus;A;B      (A/B = haplotype copy 1/2)
+##  - long, one column for alleles:   sample_name;locus;allele   (two-character genotype, e.g. "TG": T = copy 1, G = copy 2)
+##  - wide, two rows per sample:      sample_name;<locus1>;...   (one row per haplotype copy)
+##  - wide, one row per sample:       sample_name;<locus1>;...   (two-character genotype per cell, first character = copy 1)
+## All formats are phased: "TG" and "GT" are different genotypes (the first character is always the
+## allele on the first haplotype copy), as the haplotype-based model requires known linkage phase.
 
 mh_cache <- new.env(parent = emptyenv())
+mh_cache$count_scale <- list()
 
 #' Load the precomputed MH genotype probabilities (cached)
 #' @noRd
@@ -87,6 +90,36 @@ mh_out_metas <- function(){
   mh_cache$out_metas
 }
 
+#' Prepare the reference haplotype data used for the log-likelihood confidence interval
+#'
+#' `ci_data` is `MH_ci_data.Rds` (see `data-raw/MH_ci_data.R`): per meta-population and MH marker the
+#' reference haplotype motifs, the motif of each reference haplotype (row), and the cliques (`sign` = 1)
+#' and separators (`sign` = -1) of the fitted graph as positions within the motif. This derives, for every
+#' margin, the cell of each reference haplotype and the cell counts.
+#' @noRd
+mh_ci_prepare <- function(ci_data){
+  lapply(ci_data, lapply, function(e){
+    margins <- Map(function(pos, sign){
+      key <- vapply(strsplit(e$motifs, ""), function(ch) paste(ch[pos], collapse = ""), character(1))
+      cells <- unique(key)
+      rows <- match(key, cells)[e$row_code]
+      list(pos = pos, sign = sign, cells = cells, rows = rows, n = tabulate(rows, length(cells)))
+    }, e$pos, e$sign)
+    list(N = length(e$row_code), margins = margins)
+  })
+}
+
+#' Reference haplotype data for the log-likelihood confidence interval (bundled, cached)
+#' @noRd
+mh_ci_data <- function(){
+  if(is.null(mh_cache$ci_data)){
+    path <- system.file("extdata", "MH_ci_data.Rds", package = ggg_package)
+    if(!nzchar(path)) stop("Could not find 'MH_ci_data.Rds' in the package 'extdata' folder.")
+    mh_cache$ci_data <- mh_ci_prepare(readRDS(path))
+  }
+  mh_cache$ci_data
+}
+
 #' Names of the meta-populations available in the precomputed MH data
 #' @noRd
 mh_meta_populations <- function(){
@@ -125,8 +158,10 @@ mh_read_raw <- function(path){
   else rio::import(path, header = FALSE)
 }
 
-#' Detect which of the four supported MH input formats a file uses
+#' Detect which of the four supported (phased) MH input formats a file uses
 #'
+#' In every format the alleles are phased: for a two-character genotype such as `"TG"` the first
+#' character is the allele on haplotype copy 1 and the second the allele on copy 2.
 #' @param path Path to the uploaded CSV/Excel file.
 #' @return One of `"long_two_col"`, `"long_one_col"`, `"wide_two_row"`, `"wide_one_row"`.
 #' @noRd
@@ -140,20 +175,19 @@ detect_mh_format <- function(path){
     if(length(header) == 3 && header_lower[3] == "allele") return("long_one_col")
     stop("Unrecognised long-format header: expected 'sample_name;locus;A;B' or 'sample_name;locus;allele'.")
   }
-  ## Wide format: distinguish by the width of a data cell (1 character = phased/one haplotype
-  ## per row; 2 characters = unphased genotype per cell)
+  ## Wide format: distinguish by the width of a data cell (1 character = one haplotype copy per row;
+  ## 2 characters = both haplotype copies in one cell)
   cell <- as.character(raw[2, 2])
   if(nchar(trimws(cell)) == 1) return("wide_two_row")
   if(nchar(trimws(cell)) == 2) return("wide_one_row")
   stop("Unrecognised wide-format data: expected single-character alleles (two rows per sample) or two-character genotypes (one row per sample).")
 }
 
-#' Read an MH profile file into canonical long format, regardless of the specific input format
+#' Read a phased MH profile file into canonical long format, regardless of the specific input format
 #'
 #' @param path Path to the uploaded CSV/Excel file.
-#' @return A tibble with columns `sample_name`, `locus`, `allele1`, `allele2`, `phased`
-#'   (`TRUE` when `allele1`/`allele2` are known to come from a specific haplotype copy,
-#'   `FALSE` when only the unordered pair of alleles at that locus is known).
+#' @return A tibble with columns `sample_name`, `locus`, `allele1`, `allele2` (the alleles of
+#'   haplotype copy 1 and 2).
 #' @noRd
 read_mh_profile_file <- function(path){
   format <- detect_mh_format(path)
@@ -172,8 +206,7 @@ parse_mh_long_two_col <- function(path){
     sample_name = as.character(raw[[1]]),
     locus = normalize_locus_id(raw[["locus"]]),
     allele1 = toupper(trimws(raw[["A"]])),
-    allele2 = toupper(trimws(raw[["B"]])),
-    phased = TRUE
+    allele2 = toupper(trimws(raw[["B"]]))
   )
 }
 
@@ -185,8 +218,7 @@ parse_mh_long_one_col <- function(path){
     sample_name = as.character(raw[[1]]),
     locus = normalize_locus_id(raw[["locus"]]),
     allele1 = substr(geno, 1, 1),
-    allele2 = substr(geno, 2, 2),
-    phased = FALSE
+    allele2 = substr(geno, 2, 2)
   )
 }
 
@@ -207,8 +239,7 @@ parse_mh_wide_two_row <- function(path){
     col <- body[[j + 1L]]
     tibble::tibble(sample_name = base_sample, copy = copy, locus = loci[j], allele = toupper(trimws(col)))
   }) %>%
-    tidyr::pivot_wider(names_from = copy, values_from = allele, names_prefix = "allele") %>%
-    dplyr::mutate(phased = TRUE)
+    tidyr::pivot_wider(names_from = copy, values_from = allele, names_prefix = "allele")
 }
 
 #' @noRd
@@ -223,83 +254,147 @@ parse_mh_wide_one_row <- function(path){
     geno <- toupper(trimws(body[[j + 1L]]))
     tibble::tibble(
       sample_name = sample_name, locus = loci[j],
-      allele1 = substr(geno, 1, 1), allele2 = substr(geno, 2, 2), phased = FALSE
+      allele1 = substr(geno, 1, 1), allele2 = substr(geno, 2, 2)
     )
   })
 }
 
-#' Enumerate the distinct haplotype-motif pairs consistent with a (possibly unphased) MH genotype
-#'
-#' When `phased` is `TRUE`, or there is at most one heterozygous locus, the motif pair is
-#' unambiguous. With two or more heterozygous loci, linkage phase is unknown, so every
-#' distinct (unordered) phase resolution is returned - the caller sums their probabilities to
-#' marginalise over the unknown phase.
-#' @param allele1,allele2 Character vectors of alleles at each locus, ordered by `position`.
-#' @param phased Logical; whether `allele1`/`allele2` are known to come from specific haplotype copies.
-#' @return A list of two-element character vectors `c(motif1, motif2)`.
+#' Haplotype-motif pair of a phased MH genotype
+#' @param allele1,allele2 Character vectors of the alleles of haplotype copy 1 and 2 at each locus,
+#'   ordered by `position`.
+#' @return A two-element character vector `c(motif1, motif2)`.
 #' @noRd
-mh_motif_candidates <- function(allele1, allele2, phased){
-  het <- allele1 != allele2
-  n_het <- sum(het)
-  if(phased || n_het <= 1){
-    return(list(c(paste(allele1, collapse = ""), paste(allele2, collapse = ""))))
-  }
-  het_idx <- which(het)
-  n <- length(het_idx)
-  swaps <- as.matrix(expand.grid(rep(list(c(FALSE, TRUE)), n)))
-  raw <- lapply(seq_len(nrow(swaps)), function(i){
-    a1 <- allele1; a2 <- allele2
-    flip <- het_idx[swaps[i, ]]
-    if(length(flip) > 0){
-      tmp <- a1[flip]; a1[flip] <- a2[flip]; a2[flip] <- tmp
-    }
-    c(paste(a1, collapse = ""), paste(a2, collapse = ""))
-  })
-  canon_keys <- vapply(raw, function(v) paste(sort(v), collapse = ";"), character(1))
-  raw[!duplicated(canon_keys)]
+mh_motif_pair <- function(allele1, allele2){
+  c(paste(allele1, collapse = ""), paste(allele2, collapse = ""))
 }
 
-#' Look up a candidate motif pair in a combined `MH`/`geno` table, trying both allele orders
+#' Look up a motif pair in a combined `MH`/`geno` table, trying both allele orders
 #' @noRd
-mh_lookup_candidate <- function(cand, tbl, meta_cols){
-  row <- tbl[tbl$geno == paste(cand[1], cand[2], sep = ";"), meta_cols, drop = FALSE]
-  if(nrow(row) == 0) row <- tbl[tbl$geno == paste(cand[2], cand[1], sep = ";"), meta_cols, drop = FALSE]
+mh_lookup_candidate <- function(pair, tbl, meta_cols){
+  row <- tbl[tbl$geno == paste(pair[1], pair[2], sep = ";"), meta_cols, drop = FALSE]
+  if(nrow(row) == 0) row <- tbl[tbl$geno == paste(pair[2], pair[1], sep = ";"), meta_cols, drop = FALSE]
   if(nrow(row) == 0) return(NULL)
   unlist(row[1, ])
 }
 
-#' Compute per-sample, per-meta-population likelihoods and outlier test of an MH profile
+#' Small-count correction factor of a cell's first-order standard error
+#'
+#' In the extended database a cell has count `n_ext = X + e`: `X` reference haplotypes (random) plus `e`
+#' haplotypes of the profile (fixed). With `X ~ Binomial(N, n_ext / (N + 2))`, the first-order variance of
+#' `log(n_ext)` is `N (1 - pi) / (n_ext (N + 2))`, which overestimates the exact variance of `log(X + e)` for
+#' small counts (4x at `n_ext = 1`). Returns the square root of exact over first-order variance (1 for large counts).
+#' @param n_ext,e Extended and profile counts of the cells (vectors of equal length).
+#' @param N Number of reference haplotypes.
+#' @noRd
+mh_count_scale <- function(n_ext, e, N){
+  vapply(seq_along(n_ext), function(i){
+    if(n_ext[i] >= 100) return(1)
+    key <- paste(n_ext[i], e[i], N)
+    if(is.null(s <- mh_cache$count_scale[[key]])){
+      pi_hat <- n_ext[i] / (N + 2); x <- 0:N
+      w <- stats::dbinom(x, N, pi_hat); l <- log(x + e[i])
+      s <- sqrt((sum(w * l^2) - sum(w * l)^2) / (N * (1 - pi_hat) / (n_ext[i] * (N + 2))))
+      mh_cache$count_scale[[key]] <- s
+    }
+    s
+  }, numeric(1))
+}
+
+#' First-order (delta method) variance of a profile's log10 likelihood in one meta-population
+#'
+#' The probability of an MH genotype is computed conditionally on the profile, i.e. with the profile's
+#' two haplotypes added to the reference haplotypes (`x + x0`). The variance is derived in the same
+#' framework: the extended database of `N + 2` haplotypes is the plug-in distribution, from which the
+#' `N` reference haplotypes are drawn i.i.d. while the profile stays fixed. With
+#' `g_i = sum_a c_a s_a 1[haplotype i of the extended database in cell a] / p_a` (`c_a` = +1/-1 times the
+#' number of the profile's haplotypes in the clique/separator cell, `p_a` the cell proportion in the extended
+#' database, `s_a` the small-count factor of `mh_count_scale()`), `Var(log P) = N / (N + 2)^2 * Var_i(g_i)`.
+#' `g_i` is summed over all markers, which keeps the dependence between markers. Every cell of the profile
+#' occurs in the extended database, so the variance is always defined.
+#' @param prep The meta-population's slice of `mh_ci_prepare()`.
+#' @param items One element per MH marker used: `list(MH, pair)` with the profile's motif pair.
+#' @return The variance of `log10_likelihood` (`NA` if the marker data are not available).
+#' @noRd
+mh_log10_var <- function(prep, items){
+  g <- NULL; N <- NULL
+  for(it in items){
+    e <- prep[[it$MH]]
+    if(is.null(e)) return(NA_real_)
+    if(is.null(g)){ N <- e$N; g <- numeric(N + 2) }
+    haps <- strsplit(it$pair, "")
+    for(M in e$margins){
+      key <- vapply(haps, function(ch) paste(ch[M$pos], collapse = ""), character(1))
+      cells <- c(M$cells, setdiff(key, M$cells))
+      cell <- match(key, cells)
+      rows <- c(M$rows, cell)
+      n <- tabulate(rows, length(cells))
+      coef <- numeric(length(cells))
+      coef[cell[1]] <- coef[cell[1]] + M$sign
+      coef[cell[2]] <- coef[cell[2]] + M$sign
+      occ <- unique(cell)
+      coef[occ] <- coef[occ] * mh_count_scale(n[occ], tabulate(cell, length(cells))[occ], N)
+      g <- g + (coef / (n / (N + 2)))[rows]
+    }
+  }
+  if(is.null(g)) return(NA_real_)
+  N / (N + 2)^2 * mean((g - mean(g))^2) / log(10)^2
+}
+
+#' Standard error of the log10 likelihood for every sample and meta-population
+#' @param per_mh,stats The per-(sample, MH) table and the matching list of per-marker results
+#'   (`pair`) built in `mh_profile_likelihood()`.
+#' @return A list with `se` (`sample_name`, `meta`, `se_log10`) and `unobserved`, an empty tibble (the
+#'   variance is always defined, see `mh_log10_var()`; kept until the module is updated).
+#' @noRd
+mh_likelihood_ci <- function(per_mh, stats, metas, ci_data, snp_map){
+  has_pair <- !vapply(stats, function(x) is.null(x$pair), logical(1))
+  se <- list()
+  for(s in unique(per_mh$sample_name)){
+    idx <- which(per_mh$sample_name == s & has_pair)
+    items <- lapply(idx, function(i) list(MH = per_mh$MH[i], pair = stats[[i]]$pair))
+    for(meta in metas){
+      se[[length(se) + 1]] <- data.frame(sample_name = s, meta = meta, se_log10 = sqrt(mh_log10_var(ci_data[[meta]], items)))
+    }
+  }
+  list(se = tibble::as_tibble(do.call(rbind, se)),
+       unobserved = tibble::tibble(sample_name = character(), meta = character(), MH = character(),
+                                   haplotype = character(), snps = character()))
+}
+
+#' Compute per-sample, per-meta-population likelihoods and outlier test of a phased MH profile
 #'
 #' For each sample and MH marker with complete SNP coverage in the input, reconstructs the
-#' haplotype motif pair (marginalising over unknown phase when needed, see
-#' `mh_motif_candidates()`) and looks up its precomputed genotype probability/deviance. No
-#' model fitting or simulation is performed - this is combinatorics and table look-ups only.
+#' haplotype motif pair and looks up its precomputed genotype probability/deviance. No
+#' model fitting or simulation is performed - this is table look-ups and products only.
 #' A microhaplotype marker is used only when ALL of its constituent SNPs are present for a
 #' given sample - if any SNP is missing, the *entire* marker is dropped for that sample (a
 #' missing allele only ever affects the single MH marker it belongs to).
-#' When phase is unknown and a marker has 2+ heterozygous SNPs, the marker's deviance is the
-#' probability-weighted average of its candidate phase resolutions' deviances (reducing to the
-#' single value when there is no ambiguity).
 #' @param canon_long Tibble as returned by `read_mh_profile_file()`.
 #' @param snp_map The MH-to-SNP map, see `mh_snp_map()`.
 #' @param probs_tbl The combined probability table, see `mh_geno_probs_table()`.
 #' @param devi_tbl The combined deviance table, see `mh_geno_devi_table()`.
 #' @param out_metas The per-meta outlier null models, see `mh_out_metas()`.
+#' @param ci_data Prepared reference haplotype data for the log-likelihood confidence interval, see
+#'   `mh_ci_data()`. If `NULL`, no standard errors are computed.
 #' @param alpha Significance level for the outlier test (default `0.05`, mirrors the AIMs `CI` control).
 #' @return `NULL` if nothing could be computed, otherwise a list with:
 #'   `result`: tibble with `sample_name`, `meta`, `n_loci` (MH markers used), `likelihood`,
 #'   `log10_likelihood`, `LR_best` (likelihood ratio vs. the most likely meta-population),
 #'   `rel_prob` (likelihood normalised to sum to one across meta-populations, assuming a
 #'   uniform prior - NOT a p-value), `devi` (summed deviance, calibrated against `out_metas`),
-#'   `z_score` (`(devi - mu) / sigma`), `p_value` (`1 - ecdf(sims)(devi)`, i.e. `pval()` from
+#'   `z_score` (`(devi - mu) / sqrt(2 * sigma)`), `p_value` (`1 - ecdf(sims)(devi)`, i.e. `pval()` from
 #'   `sampling_profiles.R`, computed without depending on `molic` at query time), `critical_value`
 #'   (deviance threshold at `alpha`) and `accept` (`p_value > alpha`).
+#'   `se_log10` (first-order standard error of `log10_likelihood`, see `mh_log10_var()`; `NA` if no
+#'   `ci_data` was supplied).
+#'   `ci_unobserved`: always empty (the variance is defined for every profile), kept for the module.
 #'   `unmatched_loci`: locus ids in the file not part of any known MH marker.
 #'   `incomplete_mh`: tibble of (sample, MH) combinations dropped due to missing SNPs.
 #'   `not_found`: tibble of (sample, MH) genotype combinations missing from the reference data.
 #' @noRd
 mh_profile_likelihood <- function(canon_long, snp_map = mh_snp_map(), probs_tbl = mh_geno_probs_table(),
-                                   devi_tbl = mh_geno_devi_table(), out_metas = mh_out_metas(), alpha = 0.05){
+                                   devi_tbl = mh_geno_devi_table(), out_metas = mh_out_metas(),
+                                   ci_data = mh_ci_data(), alpha = 0.05){
   if(is.null(canon_long) || nrow(canon_long) == 0) return(NULL)
   meta_cols <- setdiff(names(probs_tbl), c("MH", "geno"))
 
@@ -327,24 +422,21 @@ mh_profile_likelihood <- function(canon_long, snp_map = mh_snp_map(), probs_tbl 
     dplyr::semi_join(complete_keys, by = c("sample_name", "MH")) %>%
     dplyr::arrange(sample_name, MH, position) %>%
     dplyr::summarise(
-      candidates = list(mh_motif_candidates(allele1, allele2, phased[1])),
+      pair = list(mh_motif_pair(allele1, allele2)),
       .by = c(sample_name, MH)
     )
 
   probs_by_mh <- split(probs_tbl, probs_tbl$MH)
   devi_by_mh <- split(devi_tbl, devi_tbl$MH)
-  mh_meta_stats <- purrr::pmap(per_mh, function(sample_name, MH, candidates){
+  mh_meta_stats <- purrr::pmap(per_mh, function(sample_name, MH, pair){
     na_out <- list(prob = stats::setNames(rep(NA_real_, length(meta_cols)), meta_cols),
                    devi = stats::setNames(rep(NA_real_, length(meta_cols)), meta_cols))
     ptbl <- probs_by_mh[[MH]]; dtbl <- devi_by_mh[[MH]]
     if(is.null(ptbl) || is.null(dtbl)) return(na_out)
-    hits_p <- purrr::compact(purrr::map(candidates, mh_lookup_candidate, tbl = ptbl, meta_cols = meta_cols))
-    hits_d <- purrr::compact(purrr::map(candidates, mh_lookup_candidate, tbl = dtbl, meta_cols = meta_cols))
-    if(length(hits_p) == 0 || length(hits_d) == 0) return(na_out)
-    prob <- Reduce(`+`, hits_p)
-    ## Probability-weighted average deviance across ambiguous phase candidates
-    devi <- Reduce(`+`, purrr::map2(hits_p, hits_d, `*`)) / prob
-    list(prob = prob, devi = devi)
+    prob <- mh_lookup_candidate(pair, ptbl, meta_cols)
+    devi <- mh_lookup_candidate(pair, dtbl, meta_cols)
+    if(is.null(prob) || is.null(devi)) return(na_out)
+    list(prob = prob, devi = devi, pair = pair)
   })
   not_found <- per_mh %>% dplyr::select(sample_name, MH) %>%
     dplyr::filter(vapply(mh_meta_stats, function(x) all(is.na(x$prob)), logical(1)))
@@ -380,14 +472,17 @@ mh_profile_likelihood <- function(canon_long, snp_map = mh_snp_map(), probs_tbl 
     dplyr::mutate(
       mu = out_metas[[meta]]$mu,
       sigma = out_metas[[meta]]$sigma,
-      z_score = (devi - mu) / sigma,
+      z_score = (devi - mu) / sqrt(2 * sigma),
       p_value = 1 - out_metas[[meta]]$cdf(devi),
       critical_value = stats::quantile(out_metas[[meta]]$sims, probs = 1 - alpha, names = FALSE),
       accept = p_value > alpha
     ) %>%
     dplyr::ungroup() %>%
     dplyr::arrange(sample_name, dplyr::desc(likelihood))
-  list(result = result, unmatched_loci = unmatched_loci, incomplete_mh = incomplete_mh, not_found = not_found)
+  ci <- if(is.null(ci_data)) NULL else mh_likelihood_ci(per_mh, mh_meta_stats, meta_cols, ci_data, snp_map)
+  result <- if(is.null(ci)) dplyr::mutate(result, se_log10 = NA_real_) else dplyr::left_join(result, ci$se, by = c("sample_name", "meta"))
+  list(result = result, unmatched_loci = unmatched_loci, incomplete_mh = incomplete_mh, not_found = not_found,
+       ci_unobserved = ci$unobserved)
 }
 
 #' Pairwise likelihood ratios for an MH result table
@@ -418,37 +513,38 @@ mh_LR_table <- function(result, who = NULL, only_accepted = TRUE){
   lr_list %>% dplyr::arrange(numerator, denominator)
 }
 
-#' Error-bar plot of the outlier test statistic (deviance) per meta-population
+#' Plot of the log10 profile probability per meta-population with approximate confidence intervals
 #'
-#' Mirrors `error_bar_plot()`/`error_bar_plotly()` (see `helper_plots.R`) for the AIMs analysis,
-#' but plots the MH deviance statistic instead of `logP` - the error bars use `sigma`, the
-#' standard error of the deviance estimated (offline) from the precomputed outlier null models
-#' (see `mh_out_metas()`), exactly as `mu`/`sigma` are used for `z_score` in `mh_profile_likelihood()`.
+#' Mirrors `error_bar_plot()`/`error_bar_plotly()` (see `helper_plots.R`) for the AIMs analysis: same
+#' axis, ordering and accepted/rejected colour scale (`bar_colour()`). The intervals are
+#' `log10_likelihood +/- z * se_log10` (first-order standard error, see `mh_log10_var()`); they are omitted
+#' where `se_log10` is `NA`.
 #' @param result_df A single sample's slice of `mh_profile_likelihood()`'s `result` tibble
-#'   (must contain `meta`, `devi`, `sigma`, `z_score`, `p_value`, `accept`).
-#' @param ci Confidence level for the error bars (default `0.95`, mirrors the AIMs `CI` control).
+#'   (must contain `meta`, `log10_likelihood`, `se_log10`, `n_loci`, `z_score`, `p_value`, `accept`).
+#' @param ci Confidence level for the intervals (default `0.95`, mirrors the AIMs `CI` control).
 #' @return A `ggplot` object.
 #' @noRd
 mh_error_bar_plot <- function(result_df, ci = 0.95){
   z <- stats::qnorm((1 - ci) / 2, lower.tail = FALSE)
   df <- result_df %>%
     dplyr::mutate(
-      devi_lwr = devi - z * sigma,
-      devi_upr = devi + z * sigma,
+      logP = log10_likelihood,
+      logP_lwr = logP - z * se_log10,
+      logP_upr = logP + z * se_log10,
+      ci_text = ifelse(is.na(se_log10), "CI not available", sprintf("[%0.2f, %0.2f]", logP_lwr, logP_upr)),
       pop_label = sprintf(
-        "<b>%s</b><br><b><i>z</i>-score:</b> %0.2f (%s)<br><b>Deviance:</b> %0.1f [%0.1f, %0.1f]<br><b>p-value:</b> %0.4f",
-        meta, z_score, ifelse(accept, "accepted", "rejected"), devi, devi_lwr, devi_upr, p_value
+        "<b>%s</b> (<i>%d MH markers</i>)<br><b><i>z</i>-score:</b> %0.2f (%s)<br><b>log<sub>10</sub> P</b>: %0.2f %s<br><b>p-value:</b> %0.4f",
+        meta, n_loci, z_score, ifelse(accept, "accepted", "rejected"), logP, ci_text, p_value
       ),
-      meta = forcats::fct_reorder(meta, devi)
+      meta = forcats::fct_reorder(meta, logP)
     )
-  devi_range <- c(min(df$devi_lwr), max(df$devi_upr))
   df %>%
-    ggplot(aes(y = meta, x = devi, xmin = devi_lwr, xmax = devi_upr, colour = accept, text = pop_label)) +
-    labs(y = "", x = "Deviance") +
+    ggplot(aes(y = meta, x = logP, xmin = logP_lwr, xmax = logP_upr, colour = meta, text = pop_label)) +
+    labs(y = "", x = "log<sub>10</sub> P(Profile | Meta-population)") +
     guides(colour = "none") +
-    coord_cartesian(xlim = devi_range) +
-    geom_point() + geom_errorbarh() +
-    scale_colour_manual(values = c(`TRUE` = "darkgreen", `FALSE` = "darkred")) +
+    coord_cartesian(xlim = rev(range(c(df$logP, df$logP_lwr, df$logP_upr), na.rm = TRUE))) +
+    geom_point() + geom_errorbarh(na.rm = TRUE) +
+    scale_colour_manual(values = bar_colour(df[, c("logP", "accept", "meta")])) +
     theme_bw()
 }
 

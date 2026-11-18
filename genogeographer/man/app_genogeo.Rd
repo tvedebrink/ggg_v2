@@ -12,12 +12,13 @@ Each component is expected to be returned from \code{make_x1}.}
 
 \item{reporting_panel}{Logical. Should report generate and download be available after sample analysis.}
 
-\item{mh_data}{A list with elements `probs`, `snp_map` and `out_metas` holding the precomputed
-microhaplotype (MH) genotype probabilities/deviances, MH-to-SNP map, and per-meta-population
-outlier null models, respectively (see `precompute_likelihood_deviance.R`, `fit_structures.R`
-and `outlier_detect.R` in the 'microhaps' analysis project). If `NULL` (the default), the data
-bundled with the package (`inst/extdata/MH_profiles_probs.Rds`, `MH_snp_map.Rds` and
-`MH_out_metas.Rds`) is used.}
+\item{mh_data}{A list with elements `probs`, `snp_map`, `out_metas` and `ci_data` holding the precomputed
+microhaplotype (MH) genotype probabilities/deviances, MH-to-SNP map, per-meta-population
+outlier null models, and reference haplotype data for the log-likelihood confidence intervals, respectively
+(see `precompute_likelihood_deviance.R`, `fit_structures.R` and `outlier_detect.R` in the 'microhaps'
+analysis project, and `data-raw/MH_ci_data.R`). If `NULL` (the default), the data
+bundled with the package (`inst/extdata/MH_profiles_probs.Rds`, `MH_snp_map.Rds`,
+`MH_out_metas.Rds` and `MH_ci_data.Rds`) is used.}
 }
 \description{
 Shiny application for GenoGeoGrapher

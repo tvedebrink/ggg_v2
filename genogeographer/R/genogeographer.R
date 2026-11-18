@@ -62,8 +62,8 @@ utils::globalVariables(c(".", "locus", "x0", "genotype", "pop_label", "neg", "po
                          "P1", "P2", "n1", "n2", "x1", "x2", "f1", "f2", "pair", "admix", "Kidd", "Seldin",
                          "Significantly different", "lab", "population", "metapopulation", "db_x1",
                          "MH", "MH_raw", "sample_name", "geno", "likelihood",
-                         "phased", "allele1", "allele2", "position", "snp", "n_snps_found", "n_snps_expected", "allele",
+                         "allele1", "allele2", "position", "snp", "n_snps_found", "n_snps_expected", "allele",
                          "devi", "critical_value", "log10_likelihood", "log10_LR",
                          "meta_num", "meta_den", "accept_num", "accept_den", "p_value_num", "p_value_den",
-                         "neg_log10_p", "accept_chr", "sigma", "mu", "devi_lwr", "devi_upr"))
+                         "neg_log10_p", "accept_chr", "sigma", "mu", "devi_lwr", "devi_upr", "se_log10", "ci_text", "haplotype", "snps", "n_loci"))
 NULL

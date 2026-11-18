@@ -14,7 +14,7 @@ server_api <- function(input, output, session){
   reactive_db_list <- reactiveValues(db = db_list)
 
   mod_analyse_server("analyse", db_list = reactive_db_list, reporting_panel = reporting_panel)
-  mod_mh_analyse_server("mh", mh_data = mh_data)
+  mod_mh_analyse_server("mh", mh_data = mh_data, db_list = reactive_db_list)
   mod_reference_databases_server("refdb", db_list = reactive(reactive_db_list$db))
   mod_add_reference_server("addref")
 }

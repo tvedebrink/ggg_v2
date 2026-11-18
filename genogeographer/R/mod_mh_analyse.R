@@ -41,24 +41,28 @@ mod_mh_analyse_ui <- function(id){
 
 #' Microhaplotype (MH) profile module - server
 #' @param id Module id
-#' @param mh_data A list with elements `probs`, `snp_map` and `out_metas` overriding the bundled
-#' precomputed MH genotype probabilities / MH-to-SNP map / outlier null models (see
-#' `mh_profiles_probs()`/`mh_snp_map()`/`mh_out_metas()`). If `NULL`, the data shipped with the
-#' package is used.
+#' @param mh_data A list with elements `probs`, `snp_map`, `out_metas` and `ci_data` overriding the bundled
+#' precomputed MH genotype probabilities / MH-to-SNP map / outlier null models / reference haplotype data for
+#' the confidence intervals (see `mh_profiles_probs()`/`mh_snp_map()`/`mh_out_metas()`/`mh_ci_data()`). If
+#' `NULL`, the data shipped with the package is used. If `probs` is supplied without `ci_data`, no confidence
+#' intervals are computed (the bundled reference haplotypes would not match).
+#' @param db_list Optional `reactiveValues` with a `db` element holding the AIMs reference databases; the map
+#' centres of the meta-populations are taken from these (see `mh_meta_centres()`).
 #' @noRd
-mod_mh_analyse_server <- function(id, mh_data = NULL){
+mod_mh_analyse_server <- function(id, mh_data = NULL, db_list = NULL){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
     ## build fixes : start ##
     sample_name <- NULL; meta <- NULL
     likelihood <- NULL; log10_likelihood <- NULL; LR_best <- NULL; rel_prob <- NULL; n_loci <- NULL
-    devi <- NULL; z_score <- NULL; p_value <- NULL; critical_value <- NULL; accept <- NULL
+    devi <- NULL; z_score <- NULL; p_value <- NULL; critical_value <- NULL; accept <- NULL; se_log10 <- NULL
     ## build fixes : end ##
 
     snp_map_used <- if(!is.null(mh_data$snp_map)) mh_data$snp_map else mh_snp_map()
     probs_tbl_used <- if(!is.null(mh_data$probs)) mh_build_probs_table(mh_data$probs) else mh_geno_probs_table()
     devi_tbl_used <- if(!is.null(mh_data$probs)) mh_build_devi_table(mh_data$probs) else mh_geno_devi_table()
     out_metas_used <- if(!is.null(mh_data$out_metas)) mh_prepare_out_metas(mh_data$out_metas) else mh_out_metas()
+    ci_data_used <- if(!is.null(mh_data$ci_data)) mh_ci_prepare(mh_data$ci_data) else if(is.null(mh_data$probs)) mh_ci_data() else NULL
 
     observeEvent(input$analyse, {
       withBusyIndicatorServer(buttonId = "analyse", session = session, expr = reactive_mh_likelihood())
@@ -81,7 +85,7 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
       if(is.null(canon)) return(NULL)
       alpha <- 1 - isolate(input$CI) / 100
       mh_profile_likelihood(canon, snp_map = snp_map_used, probs_tbl = probs_tbl_used,
-                            devi_tbl = devi_tbl_used, out_metas = out_metas_used, alpha = alpha)
+                            devi_tbl = devi_tbl_used, out_metas = out_metas_used, ci_data = ci_data_used, alpha = alpha)
     })
 
     output$sample_select <- renderUI({
@@ -122,9 +126,12 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
         if(is.null(dat) || nrow(dat) == 0){
           tagList(
             h3("Upload a valid MH profile"),
-            HTML("<p>Upload a file with individual SNP genotypes for each sample, in one of the following formats
-                 (detected automatically). Each is illustrated below with the first rows/columns of the
-                 corresponding sample file, downloadable via the link underneath.</p>"),
+            HTML("<p>Upload a file with phased SNP genotypes for each sample, in one of the following formats
+                 (detected automatically). The alleles are always phased: in a two-character genotype such as
+                 <code>TG</code> the first character is the allele on the first haplotype copy and the second
+                 character the allele on the second, so <code>TG</code> and <code>GT</code> are different.
+                 Each format is illustrated below with the first rows/columns of the corresponding sample file,
+                 downloadable via the link underneath.</p>"),
             layout_columns(
               fill = FALSE,
               card(
@@ -132,11 +139,11 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
                 card_header("Long format"),
                 card_body(
                   fill = FALSE,
-                  h5("Two columns (phased)"), tags$code("sample_name;locus;A;B"),
-                  p("One row per sample/locus, alleles phased into haplotype copies A/B."),
+                  h5("Two allele columns"), tags$code("sample_name;locus;A;B"),
+                  p("One row per sample/locus, with the alleles of haplotype copies A and B."),
                   DTOutput(ns("preview_long_two"), fill = FALSE), downloadLink(ns("dl_long_two"), "Download"), tags$hr(),
-                  h5("One column (unphased)"), tags$code("sample_name;locus;allele"),
-                  p("One row per sample/locus, unphased genotype (e.g. \"GT\")."),
+                  h5("One genotype column"), tags$code("sample_name;locus;allele"),
+                  p("One row per sample/locus, with the genotype of the two haplotype copies (e.g. \"TG\": T on copy 1, G on copy 2)."),
                   DTOutput(ns("preview_long_one"), fill = FALSE), downloadLink(ns("dl_long_one"), "Download")
                 )
               ),
@@ -145,11 +152,11 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
                 card_header("Wide format"),
                 card_body(
                   fill = FALSE,
-                  h5("Two rows (phased)"),
+                  h5("Two rows per sample"),
                   p("One column per locus, two rows per sample - one per haplotype copy."),
                   DTOutput(ns("preview_wide_two"), fill = FALSE), downloadLink(ns("dl_wide_two"), "Download"), tags$hr(),
-                  h5("One row (unphased)"),
-                  p("One column per locus, one row per sample with two-character genotypes."),
+                  h5("One row per sample"),
+                  p("One column per locus, one row per sample with the two-character genotype of the haplotype copies (first character = copy 1)."),
                   DTOutput(ns("preview_wide_one"), fill = FALSE), downloadLink(ns("dl_wide_one"), "Download")
                 )
               )
@@ -159,8 +166,7 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
         else{
           tagList(
             h3("Uploaded file"),
-            p(paste0("The file was recognised as ", if(isTRUE(dat$phased[1])) "phased" else "unphased",
-                     " input with ", dplyr::n_distinct(dat$sample_name), " sample(s) and ",
+            p(paste0("The file contains ", dplyr::n_distinct(dat$sample_name), " sample(s) and ",
                      dplyr::n_distinct(dat$locus), " locus/loci.")),
             p(HTML("Click <b>Analyse!</b> in the sidebar to compute the meta-population likelihoods.")),
             card(
@@ -201,30 +207,46 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
             )
           ))
         }
+        if(!is.null(lik$ci_unobserved) && nrow(lik$ci_unobserved) > 0){
+          n_comb <- nrow(dplyr::distinct(lik$ci_unobserved, sample_name, meta))
+          panels <- c(panels, list(
+            div(class = "alert alert-warning",
+                HTML(paste0("<b>The confidence interval of the log<sub>10</sub> likelihood could not be calculated for ", n_comb,
+                            " sample/meta-population combination(s)</b>, because the profile contains haplotypes that have not ",
+                            "previously been observed in the reference data of the meta-population (see the table below the plot). ",
+                            "The likelihood itself is not affected."))
+            )
+          ))
+        }
         panels <- c(panels, list(
           layout_columns(
             fill = FALSE,
-            col_widths = 8,
+            col_widths = c(6, 6),
             card(
               fill = FALSE,
-              card_header("Outlier test"),
+              card_header("Profile probability"),
               card_body(fill = FALSE, uiOutput(ns("barplot_panel")))
+            ),
+            card(
+              fill = FALSE,
+              card_header("Map"),
+              card_body(fill = FALSE, uiOutput(ns("map_panel")), uiOutput(ns("map_note")))
             )
           ),
+          uiOutput(ns("ci_unobserved_panel")),
           card(
             fill = FALSE,
             card_header("Results"),
             card_body(
               fill = FALSE,
               HTML("<p>The table below shows, for the selected sample, the likelihood of observing its MH
-                 profile in each meta-population (based on precomputed genotype probabilities), the
-                 likelihood ratio versus the most likely meta-population (<code>LR_best</code>) and the
+                 profile in each meta-population (based on precomputed genotype probabilities) and its
+                 first-order standard error (<code>se_log10</code>, on the log<sub>10</sub> scale; missing when the profile
+                 contains haplotypes not previously observed), the likelihood ratio versus the most likely meta-population (<code>LR_best</code>) and the
                  relative probability across meta-populations assuming a uniform prior
                  (<code>rel_prob</code>, NOT a p-value). The outlier test (<code>z_score</code>,
                  <code>p_value</code>, <code>accept</code>) is calibrated against precomputed null models
-                 fit on the full microhaplotype panel. When linkage phase is unknown (unphased input with
-                 2+ heterozygous SNPs in a marker), probabilities are summed and deviances
-                 probability-weighted over all phase resolutions consistent with the observed genotypes.</p>"),
+                 fit on the full microhaplotype panel.</p>"),
               DTOutput(ns("result_table"), fill = FALSE)
             )
           ),
@@ -299,20 +321,21 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
       lr_tab <- reactive_LR_table()
       req(lr_tab)
       lr_tab %>%
-        dplyr::mutate(log10_LR = signif(log10_LR, 4)) %>%
         dplyr::rename(Numerator = numerator, Denominator = denominator, `log10 LR` = log10_LR) %>%
         dplyr::select(Numerator, Denominator, `log10 LR`) %>%
-        dt_table()
+        dt_table() %>%
+        DT::formatSignif("log10 LR", digits = 4)
     })
 
     output$result_table <- renderDT({
       df <- reactive_sample_result()
       req(df)
       df %>%
-        dplyr::mutate(dplyr::across(c(log10_likelihood, z_score, p_value, LR_best, rel_prob), signif, digits = 4)) %>%
-        dplyr::select(meta, n_loci, log10_likelihood, z_score, p_value, accept, LR_best, rel_prob) %>%
+        dplyr::select(meta, n_loci, log10_likelihood, se_log10, z_score, p_value, accept, LR_best, rel_prob) %>%
         dplyr::arrange(dplyr::desc(p_value)) %>%
-        dt_table()
+        dt_table() %>%
+        DT::formatSignif(c("log10_likelihood", "se_log10", "z_score", "LR_best", "rel_prob"), digits = 4) %>%
+        DT::formatRound("p_value", digits = 4)
     })
 
     output$barplot_panel <- renderUI({
@@ -322,11 +345,64 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
     output$barplot <- renderPlotly({
       df <- reactive_sample_result()
       req(df)
-      ci <- input$CI / 100
-      p <- mh_error_bar_plot(df, ci = ci)
+      p <- mh_error_bar_plot(df, ci = input$CI / 100)
       ggplotly(p, tooltip = "text") %>%
         layout(showlegend = FALSE) %>%
         config(displayModeBar = FALSE)
+    })
+
+    reactive_centres <- reactive({
+      mh_meta_centres(if(is.null(db_list)) NULL else db_list$db)
+    })
+
+    ind_per_meta <- if(is.null(ci_data_used)) NULL else vapply(ci_data_used, function(x) x[[1]]$N / 2, numeric(1))
+
+    output$map_panel <- renderUI({
+      withSpinner(leafletOutput(ns("map"), width = "100%"), type = 4)
+    })
+
+    output$map <- renderLeaflet({
+      df <- reactive_sample_result()
+      req(df)
+      leaflet_mh_plot(df, reactive_centres(), ci = input$CI / 100, n_ind = ind_per_meta)
+    })
+
+    output$map_note <- renderUI({
+      df <- reactive_sample_result()
+      req(df)
+      no_centre <- setdiff(as.character(df$meta), reactive_centres()$meta)
+      if(length(no_centre) == 0) return(NULL)
+      p(class = "small text-muted", "Not shown on the map (no centre in the reference databases): ", paste(no_centre, collapse = ", "), ".")
+    })
+
+    reactive_ci_unobserved <- reactive({
+      lik <- reactive_mh_likelihood()
+      req(lik, input$sample_id)
+      if(is.null(lik$ci_unobserved)) return(NULL)
+      lik$ci_unobserved %>% dplyr::filter(sample_name == input$sample_id)
+    })
+
+    output$ci_unobserved_panel <- renderUI({
+      unobs <- reactive_ci_unobserved()
+      if(is.null(unobs) || nrow(unobs) == 0) return(NULL)
+      card(
+        fill = FALSE,
+        card_header("Haplotypes not previously observed"),
+        card_body(
+          fill = FALSE,
+          p("The confidence interval of the log likelihood could not be calculated for these meta-populations, since the ",
+            "profile contains a haplotype with a combination of SNP alleles that is not observed in the reference data."),
+          DTOutput(ns("ci_unobserved_table"), fill = FALSE)
+        )
+      )
+    })
+
+    output$ci_unobserved_table <- renderDT({
+      unobs <- reactive_ci_unobserved()
+      req(unobs)
+      unobs %>%
+        dplyr::select(`Meta-population` = meta, `MH marker` = MH, Haplotype = haplotype, `Unobserved SNP alleles` = snps) %>%
+        dt_table()
     })
   })
 }
