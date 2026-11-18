@@ -1,7 +1,7 @@
 ## REQUIRED: named list of reference databases (the names appear in the app's database selector).
 ## Each entry is created by make_x1()/admix_dbs(), e.g. downloaded from the
 ## "Add reference populations" tab.
-db_list <- readRDS("db_list.Rds")
+db_list <- readRDS("db_visage.Rds")
 
 ## REQUIRED: TRUE shows the "Download HTML report" panel after an analysis.
 reporting_panel <- TRUE
