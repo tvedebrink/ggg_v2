@@ -11,6 +11,7 @@ mod_mh_analyse_ui <- function(id){
   nav_panel(
     title = "Analyse MH profile",
     layout_sidebar(
+      fillable = FALSE,
       sidebar = sidebar(
         width = 350, open = TRUE,
         h4("Input file"),
@@ -125,23 +126,32 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
                  (detected automatically). Each is illustrated below with the first rows/columns of the
                  corresponding sample file, downloadable via the link underneath.</p>"),
             layout_columns(
+              fill = FALSE,
               card(
+                fill = FALSE,
                 card_header("Long format"),
-                h5("Two columns (phased)"), tags$code("sample_name;locus;A;B"),
-                p("One row per sample/locus, alleles phased into haplotype copies A/B."),
-                DTOutput(ns("preview_long_two")), downloadLink(ns("dl_long_two"), "Download"), tags$hr(),
-                h5("One column (unphased)"), tags$code("sample_name;locus;allele"),
-                p("One row per sample/locus, unphased genotype (e.g. \"GT\")."),
-                DTOutput(ns("preview_long_one")), downloadLink(ns("dl_long_one"), "Download")
+                card_body(
+                  fill = FALSE,
+                  h5("Two columns (phased)"), tags$code("sample_name;locus;A;B"),
+                  p("One row per sample/locus, alleles phased into haplotype copies A/B."),
+                  DTOutput(ns("preview_long_two"), fill = FALSE), downloadLink(ns("dl_long_two"), "Download"), tags$hr(),
+                  h5("One column (unphased)"), tags$code("sample_name;locus;allele"),
+                  p("One row per sample/locus, unphased genotype (e.g. \"GT\")."),
+                  DTOutput(ns("preview_long_one"), fill = FALSE), downloadLink(ns("dl_long_one"), "Download")
+                )
               ),
               card(
+                fill = FALSE,
                 card_header("Wide format"),
-                h5("Two rows (phased)"),
-                p("One column per locus, two rows per sample - one per haplotype copy."),
-                DTOutput(ns("preview_wide_two")), downloadLink(ns("dl_wide_two"), "Download"), tags$hr(),
-                h5("One row (unphased)"),
-                p("One column per locus, one row per sample with two-character genotypes."),
-                DTOutput(ns("preview_wide_one")), downloadLink(ns("dl_wide_one"), "Download")
+                card_body(
+                  fill = FALSE,
+                  h5("Two rows (phased)"),
+                  p("One column per locus, two rows per sample - one per haplotype copy."),
+                  DTOutput(ns("preview_wide_two"), fill = FALSE), downloadLink(ns("dl_wide_two"), "Download"), tags$hr(),
+                  h5("One row (unphased)"),
+                  p("One column per locus, one row per sample with two-character genotypes."),
+                  DTOutput(ns("preview_wide_one"), fill = FALSE), downloadLink(ns("dl_wide_one"), "Download")
+                )
               )
             )
           )
@@ -154,9 +164,13 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
                      dplyr::n_distinct(dat$locus), " locus/loci.")),
             p(HTML("Click <b>Analyse!</b> in the sidebar to compute the meta-population likelihoods.")),
             card(
-              renderDT({
-                datatable(head(dat, 20), options = list(dom = "t"))
-              })
+              fill = FALSE,
+              card_body(
+                fill = FALSE,
+                renderDT({
+                  datatable(head(dat, 20), options = list(dom = "t"))
+                })
+              )
             )
           )
         }
@@ -189,15 +203,20 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
         }
         panels <- c(panels, list(
           layout_columns(
+            fill = FALSE,
             col_widths = 8,
             card(
+              fill = FALSE,
               card_header("Outlier test"),
-              uiOutput(ns("barplot_panel"))
+              card_body(fill = FALSE, uiOutput(ns("barplot_panel")))
             )
           ),
           card(
+            fill = FALSE,
             card_header("Results"),
-            HTML("<p>The table below shows, for the selected sample, the likelihood of observing its MH
+            card_body(
+              fill = FALSE,
+              HTML("<p>The table below shows, for the selected sample, the likelihood of observing its MH
                  profile in each meta-population (based on precomputed genotype probabilities), the
                  likelihood ratio versus the most likely meta-population (<code>LR_best</code>) and the
                  relative probability across meta-populations assuming a uniform prior
@@ -206,12 +225,17 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
                  fit on the full microhaplotype panel. When linkage phase is unknown (unphased input with
                  2+ heterozygous SNPs in a marker), probabilities are summed and deviances
                  probability-weighted over all phase resolutions consistent with the observed genotypes.</p>"),
-            DTOutput(ns("result_table"))
+              DTOutput(ns("result_table"), fill = FALSE)
+            )
           ),
           card(
+            fill = FALSE,
             card_header("Likelihood ratios"),
-            textOutput(ns("LR_one_pop")),
-            DTOutput(ns("lr_list"))
+            card_body(
+              fill = FALSE,
+              textOutput(ns("LR_one_pop")),
+              DTOutput(ns("lr_list"), fill = FALSE)
+            )
           )
         ))
         do.call(tagList, panels)
@@ -292,7 +316,7 @@ mod_mh_analyse_server <- function(id, mh_data = NULL){
     })
 
     output$barplot_panel <- renderUI({
-      withSpinner(plotlyOutput(ns("barplot"), width = "100%"), type = 4)
+      withSpinner(plotlyOutput(ns("barplot"), width = "100%", fill = FALSE), type = 4)
     })
 
     output$barplot <- renderPlotly({

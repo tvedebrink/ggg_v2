@@ -8,6 +8,7 @@ mod_analyse_ui <- function(id){
   nav_panel(
     title = "Analyse AIMs profile",
     layout_sidebar(
+      fillable = FALSE,
       sidebar = sidebar(
         width = 350, open = TRUE,
         h4("Input file"),
@@ -76,10 +77,14 @@ mod_analyse_server <- function(id, db_list, reporting_panel = TRUE){
       if(is.null(res)){
         if(is.null(dat) || nrow(dat) == 0){
           card(
+            fill = FALSE,
             card_header("Upload valid AIMs profile"),
-            HTML("<p>Upload valid file: It must contain a column containing marker (locus) names, and a column with the genotypes as e.g. <tt>AA</tt> or <tt>AC</tt></p>"),
-            HTML("You can download a sample file showing the necessary columns and data structure here:"),
-            downloadLink(ns("download_sample"), "Download")
+            card_body(
+              fill = FALSE,
+              HTML("<p>Upload valid file: It must contain a column containing marker (locus) names, and a column with the genotypes as e.g. <tt>AA</tt> or <tt>AC</tt></p>"),
+              HTML("You can download a sample file showing the necessary columns and data structure here:"),
+              downloadLink(ns("download_sample"), "Download")
+            )
           )
         }
         else{
@@ -87,13 +92,17 @@ mod_analyse_server <- function(id, db_list, reporting_panel = TRUE){
           guess_locus_text <- and_text(pre = "<p>Suggestions for <b>locus column</b>: ", x = profile_upload$locus_guess(), post = "</p>")
           guess_genotype_text <- and_text(pre = "<p>Suggestions for <b>genotype column</b>: ", x = profile_upload$genotype_guess(), post = "</p>")
           card(
+            fill = FALSE,
             card_header("Uploaded file"),
-            HTML("<p>The first few rows of the uploaded file are shown below</p>"),
-            HTML(guess_locus_text),
-            HTML(guess_genotype_text),
-            renderDT({
-              datatable(dat, options(dom = "t"))
-            })
+            card_body(
+              fill = FALSE,
+              HTML("<p>The first few rows of the uploaded file are shown below</p>"),
+              HTML(guess_locus_text),
+              HTML(guess_genotype_text),
+              renderDT({
+                datatable(dat, options(dom = "t"))
+              })
+            )
           )
         }
       }
@@ -106,24 +115,35 @@ mod_analyse_server <- function(id, db_list, reporting_panel = TRUE){
               HTML("</p>")
           ),
           card(
+            fill = FALSE,
             card_header("Graphics"),
-            layout_columns(
-              col_widths = c(6, 6),
-              uiOutput(ns("barplot_panel")),
-              uiOutput(ns("map_panel"))
+            card_body(
+              fill = FALSE,
+              layout_columns(
+                fill = FALSE,
+                col_widths = c(6, 6),
+                uiOutput(ns("barplot_panel")),
+                uiOutput(ns("map_panel"))
+              )
             )
           ),
           card(
+            fill = FALSE,
             card_header("Tables"),
-            DTOutput(ns("result_table"))
+            card_body(fill = FALSE, DTOutput(ns("result_table"), fill = FALSE))
           ),
           card(
+            fill = FALSE,
             card_header("Likelihood ratios"),
-            textOutput(ns("LR_one_pop")),
-            layout_columns(
-              col_widths = c(6, 6),
-              DTOutput(ns("lr_list")),
-              uiOutput(ns("LRplot_panel"))
+            card_body(
+              fill = FALSE,
+              textOutput(ns("LR_one_pop")),
+              layout_columns(
+                fill = FALSE,
+                col_widths = c(6, 6),
+                DTOutput(ns("lr_list"), fill = FALSE),
+                uiOutput(ns("LRplot_panel"))
+              )
             )
           )
         )
@@ -258,7 +278,7 @@ mod_analyse_server <- function(id, db_list, reporting_panel = TRUE){
     ### BARPLOT
 
     output$barplot_panel <- renderUI({
-      withSpinner(plotlyOutput(ns("barplot"), width = "100%"), type = 4)
+      withSpinner(plotlyOutput(ns("barplot"), width = "100%", fill = FALSE), type = 4)
     })
 
     output$barplot <- renderPlotly({
@@ -369,7 +389,7 @@ mod_analyse_server <- function(id, db_list, reporting_panel = TRUE){
     })
 
     output$LRplot_panel <- renderUI({
-      withSpinner(plotlyOutput(ns("LRplot"), width = "100%"), type = 4)
+      withSpinner(plotlyOutput(ns("LRplot"), width = "100%", fill = FALSE), type = 4)
     })
 
     ### RETURN pdf REPORT
