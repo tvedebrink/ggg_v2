@@ -91,17 +91,32 @@ mod_analyse_server <- function(id, db_list, reporting_panel = TRUE){
           ## Make column suggestions
           guess_locus_text <- and_text(pre = "<p>Suggestions for <b>locus column</b>: ", x = profile_upload$locus_guess(), post = "</p>")
           guess_genotype_text <- and_text(pre = "<p>Suggestions for <b>genotype column</b>: ", x = profile_upload$genotype_guess(), post = "</p>")
-          card(
-            fill = FALSE,
-            card_header("Uploaded file"),
-            card_body(
+          ## ggg_score() returns NULL when no group reaches the minimum sample size
+          min_n <- isolate(input$min_n)
+          n_max <- NA_real_
+          if(!is.null(reactive_profile()) && !is.null(min_n)){
+            db_info <- attr(db_list$db[[db_selector$snp_set()]][[isolate(input$meta)]]$db, "info")
+            if(!is.null(db_info)) n_max <- suppressWarnings(max(as.numeric(db_info$n), na.rm = TRUE))
+          }
+          no_group_msg <- if(is.finite(n_max) && n_max < min_n){
+            div(class = "alert alert-warning",
+                paste0("No group in the selected reference database has at least ", min_n,
+                       " samples (the largest has ", n_max, "). Lower 'Minimum sample size' and click 'Analyse!'."))
+          }
+          tagList(
+            no_group_msg,
+            card(
               fill = FALSE,
-              HTML("<p>The first few rows of the uploaded file are shown below</p>"),
-              HTML(guess_locus_text),
-              HTML(guess_genotype_text),
-              renderDT({
-                datatable(dat, options(dom = "t"))
-              })
+              card_header("Uploaded file"),
+              card_body(
+                fill = FALSE,
+                HTML("<p>The first few rows of the uploaded file are shown below</p>"),
+                HTML(guess_locus_text),
+                HTML(guess_genotype_text),
+                renderDT({
+                  datatable(dat, options(dom = "t"))
+                })
+              )
             )
           )
         }
@@ -346,6 +361,7 @@ mod_analyse_server <- function(id, db_list, reporting_panel = TRUE){
 
     output$LR_one_pop <- renderText({
       res <- reactive_result()
+      if(is.null(res)) return(NULL)
       input_meta <- isolate(input$meta)
       mm <- if(is.null(input_meta)) "meta" else input_meta
       MM <- if(mm == "meta") "metapopulation" else "population"
@@ -356,7 +372,7 @@ mod_analyse_server <- function(id, db_list, reporting_panel = TRUE){
     reactive_LR_table <- reactive({
       accepted_control <- if(is.null(input$LR_accept)) FALSE else (input$LR_accept == "allow")
       res <- reactive_result()
-      if(nrow(res) <= 1) return(NULL)
+      if(is.null(res) || nrow(res) <= 1) return(NULL)
       list(
         res = res,
         LR_Tab = LR_table(z_df = res, who = input$LR_selected, CI = input$CI/100, only_accepted = !accepted_control)$LR

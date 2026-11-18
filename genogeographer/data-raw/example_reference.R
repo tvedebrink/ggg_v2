@@ -12,7 +12,7 @@ info <- data.frame(
   lon = c(10.0, 5.3, 105.0, 138.0, 8.7, 37.9)
 )
 
-n_per_pop <- 20
+n_per_pop <- 80
 loci <- ggg_allele_list$locus
 meta_freq <- sapply(unique(info$meta), function(m) rbeta(length(loci), 0.6, 0.6))
 rownames(meta_freq) <- loci
