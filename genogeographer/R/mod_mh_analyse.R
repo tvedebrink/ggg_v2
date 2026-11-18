@@ -207,23 +207,12 @@ mod_mh_analyse_server <- function(id, mh_data = NULL, db_list = NULL){
             )
           ))
         }
-        if(!is.null(lik$ci_unobserved) && nrow(lik$ci_unobserved) > 0){
-          n_comb <- nrow(dplyr::distinct(lik$ci_unobserved, sample_name, meta))
-          panels <- c(panels, list(
-            div(class = "alert alert-warning",
-                HTML(paste0("<b>", n_comb, " sample/meta-population combination(s) contain haplotypes that have not ",
-                            "previously been observed</b> in the reference data of the meta-population (see the table below the plot). ",
-                            "The likelihood of these rests on the profile's own haplotype alone, and the confidence interval is ",
-                            "correspondingly uncertain."))
-            )
-          ))
-        }
         if(!is.null(lik$ci_failed) && nrow(lik$ci_failed) > 0){
           panels <- c(panels, list(
             div(class = "alert alert-danger",
                 HTML(paste0("<b>The confidence interval of the log<sub>10</sub> likelihood could not be calculated for ",
                             nrow(lik$ci_failed), " sample/meta-population combination(s)</b>: ", and_text(unique(lik$ci_failed$meta)),
-                            ". The likelihood itself is not affected."))
+                            " (see the table below the plot). The likelihood itself is not affected."))
             )
           ))
         }
@@ -242,7 +231,7 @@ mod_mh_analyse_server <- function(id, mh_data = NULL, db_list = NULL){
               card_body(fill = FALSE, uiOutput(ns("map_panel")), uiOutput(ns("map_note")))
             )
           ),
-          uiOutput(ns("ci_unobserved_panel")),
+          uiOutput(ns("ci_failed_panel")),
           card(
             fill = FALSE,
             card_header("Results"),
@@ -413,34 +402,38 @@ mod_mh_analyse_server <- function(id, mh_data = NULL, db_list = NULL){
       p(class = "small text-muted", "Not shown on the map (no centre in the reference databases): ", paste(no_centre, collapse = ", "), ".")
     })
 
-    reactive_ci_unobserved <- reactive({
+    ## Only populated when the confidence interval could not be calculated; shows the reason and, if any, the
+    ## haplotypes not previously observed in the reference data of that meta-population
+    reactive_ci_failed <- reactive({
       lik <- reactive_mh_likelihood()
       req(lik, input$sample_id)
-      if(is.null(lik$ci_unobserved)) return(NULL)
-      lik$ci_unobserved %>% dplyr::filter(sample_name == input$sample_id)
+      if(is.null(lik$ci_failed)) return(NULL)
+      failed <- lik$ci_failed %>% dplyr::filter(sample_name == input$sample_id)
+      if(nrow(failed) == 0) return(NULL)
+      unobs <- lik$ci_unobserved %>% dplyr::filter(sample_name == input$sample_id) %>%
+        dplyr::summarise(unobserved = paste(unique(paste(MH, haplotype)), collapse = "; "), .by = meta)
+      failed %>% dplyr::left_join(unobs, by = "meta") %>% dplyr::mutate(unobserved = dplyr::coalesce(unobserved, "-"))
     })
 
-    output$ci_unobserved_panel <- renderUI({
-      unobs <- reactive_ci_unobserved()
-      if(is.null(unobs) || nrow(unobs) == 0) return(NULL)
+    output$ci_failed_panel <- renderUI({
+      failed <- reactive_ci_failed()
+      if(is.null(failed)) return(NULL)
       card(
         fill = FALSE,
-        card_header("Haplotypes not previously observed"),
+        card_header("Confidence intervals not calculated"),
         card_body(
           fill = FALSE,
-          p("The profile contains a haplotype with a combination of SNP alleles that is not observed in the reference data of ",
-            "these meta-populations. Its probability rests on the profile's own haplotype alone, so the confidence interval of ",
-            "the log likelihood is correspondingly uncertain."),
-          DTOutput(ns("ci_unobserved_table"), fill = FALSE)
+          p("The confidence interval of the log likelihood could not be calculated for these meta-populations."),
+          DTOutput(ns("ci_failed_table"), fill = FALSE)
         )
       )
     })
 
-    output$ci_unobserved_table <- renderDT({
-      unobs <- reactive_ci_unobserved()
-      req(unobs)
-      unobs %>%
-        dplyr::select(`Meta-population` = meta, `MH marker` = MH, Haplotype = haplotype, `Unobserved SNP alleles` = snps) %>%
+    output$ci_failed_table <- renderDT({
+      failed <- reactive_ci_failed()
+      req(failed)
+      failed %>%
+        dplyr::select(`Meta-population` = meta, Reason = reason, `Haplotypes not previously observed` = unobserved) %>%
         dt_table()
     })
   })
