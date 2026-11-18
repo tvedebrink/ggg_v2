@@ -30,8 +30,13 @@ leaflet_plot <- function(z_df = NULL){
     db_info <- db_info %>% filter(!(is.na(lat) | is.na(lon)))
   }
   ggg_map <- leaflet(db_info) %>%
-    addTiles() %>%
-    addProviderTiles(providers$CartoDB.Positron)
+    addTiles(
+      url = "https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key=cb1_3xnu_1_b9d34ccb5567a6125344645d",
+      attribution = paste(
+        '&copy; <a href="https://carto.com/attributions">CARTO</a>,',
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      )
+    )
   if(is.null(db_info)) return(ggg_map)
   if("convex_hull" %in% names(db_info)){
     conv_df <- db_info %>%
